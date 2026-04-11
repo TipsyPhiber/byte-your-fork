@@ -11,6 +11,14 @@ const Settings = ({ user, setUser, token, onPreferencesChange }) => {
   const [error, setError] = useState('');
   const [preferences, setPreferences] = useState(user?.preferences || []);
   const [prefMessage, setPrefMessage] = useState('');
+  const [avatarMessage, setAvatarMessage] = useState('');
+  const [avatarPreview, setAvatarPreview] = useState(user?.avatar_url || null);
+  const [newEmail, setNewEmail] = useState('');
+  const [emailPassword, setEmailPassword] = useState('');
+  const [emailMessage, setEmailMessage] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const [adminUsername, setAdminUsername] = useState('');
+  const [adminMessage, setAdminMessage] = useState('');
 
   useEffect(() => {
     setPreferences(user?.preferences || []);
@@ -31,6 +39,61 @@ const Settings = ({ user, setUser, token, onPreferencesChange }) => {
       setTimeout(() => setPrefMessage(''), 2000);
     } catch {
       setPrefMessage('Failed to save.');
+    }
+  };
+
+  const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+  const MAX_SIZE_MB = 5;
+
+  const handleAvatarChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setAvatarMessage('');
+
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      setAvatarMessage('Invalid file type. Only JPEG, PNG, WebP, or GIF allowed.');
+      return;
+    }
+    if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+      setAvatarMessage(`File too large. Maximum size is ${MAX_SIZE_MB} MB.`);
+      return;
+    }
+
+    setAvatarPreview(URL.createObjectURL(file));
+    const formData = new FormData();
+    formData.append('avatar', file);
+    try {
+      const res = await axios.post('http://localhost:5000/api/auth/avatar', formData, {
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
+      });
+      setUser({ ...user, avatar_url: res.data.avatar_url });
+      setAvatarMessage('Profile picture updated!');
+      setTimeout(() => setAvatarMessage(''), 3000);
+    } catch (err) {
+      setAvatarMessage(err.response?.data?.error || 'Failed to upload.');
+    }
+  };
+
+  const handleUpdateEmail = async (e) => {
+    e.preventDefault();
+    setEmailMessage(''); setEmailError('');
+    try {
+      await axios.put('http://localhost:5000/api/auth/update-email', { newEmail, password: emailPassword }, { headers: { Authorization: `Bearer ${token}` } });
+      setUser({ ...user, email: newEmail });
+      setEmailMessage('Email updated successfully!');
+      setNewEmail(''); setEmailPassword('');
+    } catch (err) {
+      setEmailError(err.response?.data?.error || 'Failed to update email.');
+    }
+  };
+
+  const handleSetAdmin = async (makeAdmin) => {
+    try {
+      const res = await axios.post('http://localhost:5000/api/auth/admin/set-role', { username: adminUsername, makeAdmin }, { headers: { Authorization: `Bearer ${token}` } });
+      setAdminMessage(res.data.message);
+      setAdminUsername('');
+    } catch (err) {
+      setAdminMessage(err.response?.data?.error || 'Failed.');
     }
   };
 
@@ -75,7 +138,34 @@ const Settings = ({ user, setUser, token, onPreferencesChange }) => {
   return (
     <div style={{ maxWidth: '600px', margin: '0 auto' }}>
       <h2 style={{ color: 'var(--dark-blue)', marginBottom: '30px' }}>Account Settings</h2>
-      
+
+      {/* Profile Picture */}
+      <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '15px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)', marginBottom: '30px' }}>
+        <h3 style={{ marginTop: 0, marginBottom: '20px' }}>Profile Picture</h3>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+          <div style={{ width: 72, height: 72, borderRadius: '50%', overflow: 'hidden', border: '3px solid var(--primary-blue)', flexShrink: 0 }}>
+            {avatarPreview
+              ? <img src={avatarPreview} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              : <div style={{ width: '100%', height: '100%', background: 'var(--primary-blue)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: '1.5rem' }}>
+                  {user?.first_name?.[0]?.toUpperCase() || '?'}
+                </div>
+            }
+          </div>
+          <div>
+            <label className="primary-button" style={{ cursor: 'pointer', display: 'inline-block' }}>
+              Choose Photo
+              <input type="file" accept=".jpg,.jpeg,.png,.webp,.gif" onChange={handleAvatarChange} style={{ display: 'none' }} />
+            </label>
+            <p style={{ margin: '6px 0 0', color: 'var(--text-light)', fontSize: '0.8rem' }}>JPEG, PNG, WebP, or GIF · Max 5 MB</p>
+            {avatarMessage && (
+              <p style={{ margin: '6px 0 0', fontSize: '0.9rem', color: avatarMessage.includes('updated') ? '#059669' : '#dc2626' }}>
+                {avatarMessage}
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+
       {message && <p style={{ color: '#059669', backgroundColor: '#ecfdf5', padding: '10px', borderRadius: '6px' }}>{message}</p>}
       {error && <p className="error-message">{error}</p>}
 
@@ -114,6 +204,17 @@ const Settings = ({ user, setUser, token, onPreferencesChange }) => {
         </div>
       </div>
 
+      <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '15px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)', marginBottom: '30px' }}>
+        <h3 style={{ marginTop: 0, marginBottom: '20px' }}>Change Email</h3>
+        {emailMessage && <p style={{ color: '#059669', background: '#ecfdf5', padding: '10px', borderRadius: '6px' }}>{emailMessage}</p>}
+        {emailError && <p className="error-message">{emailError}</p>}
+        <form onSubmit={handleUpdateEmail} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+          <input type="email" className="search-bar" style={{ paddingLeft: '15px' }} placeholder="New email address" value={newEmail} onChange={e => setNewEmail(e.target.value)} required />
+          <input type="password" className="search-bar" style={{ paddingLeft: '15px' }} placeholder="Confirm current password" value={emailPassword} onChange={e => setEmailPassword(e.target.value)} required />
+          <button type="submit" className="primary-button">Update Email</button>
+        </form>
+      </div>
+
       <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '15px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)' }}>
         <h3 style={{ marginTop: 0, marginBottom: '20px' }}>Change Password</h3>
         <form onSubmit={handleUpdatePassword} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
@@ -136,6 +237,18 @@ const Settings = ({ user, setUser, token, onPreferencesChange }) => {
           <button type="submit" className="primary-button">Update Password</button>
         </form>
       </div>
+      {user?.role === 'admin' && (
+        <div style={{ backgroundColor: '#fff7ed', padding: '30px', borderRadius: '15px', border: '1px solid #fed7aa', marginTop: '30px' }}>
+          <h3 style={{ marginTop: 0, marginBottom: '6px', color: '#c2410c' }}>Admin Panel</h3>
+          <p style={{ margin: '0 0 16px', color: '#9a3412', fontSize: '0.9rem' }}>Grant or revoke admin access by username.</p>
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+            <input className="search-bar" style={{ paddingLeft: '15px', flex: 1, minWidth: '180px' }} placeholder="Username" value={adminUsername} onChange={e => setAdminUsername(e.target.value)} />
+            <button className="primary-button" style={{ background: '#16a34a' }} onClick={() => handleSetAdmin(true)}>Make Admin</button>
+            <button className="primary-button" style={{ background: '#dc2626' }} onClick={() => handleSetAdmin(false)}>Remove Admin</button>
+          </div>
+          {adminMessage && <p style={{ margin: '12px 0 0', fontSize: '0.9rem', color: '#374151' }}>{adminMessage}</p>}
+        </div>
+      )}
     </div>
   );
 };

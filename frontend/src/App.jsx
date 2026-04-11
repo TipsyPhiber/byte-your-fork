@@ -189,7 +189,10 @@ function App() {
       setComments(commentsRes.data);
       setEditForm(null);
       if (token) {
-        const ratingRes = await axios.get(`${API_BASE}/ratings/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+        const [ratingRes] = await Promise.all([
+          axios.get(`${API_BASE}/ratings/${id}`, { headers: { Authorization: `Bearer ${token}` } }),
+          axios.post(`${API_BASE}/recipes/${id}/view`, {}, { headers: { Authorization: `Bearer ${token}` } }).catch(() => {})
+        ]);
         setRatingData(ratingRes.data);
       }
     } catch { /* ignore */ }
@@ -291,7 +294,7 @@ function App() {
     setView('dashboard');
   };
 
-  const isAdmin = user?.role === 'admin' || user?.id === 1;
+  const isAdmin = user?.role === 'admin';
 
   const handleClearNotifications = async () => {
     try {
@@ -353,6 +356,14 @@ function App() {
     <div className="app-container">
       <aside className="sidebar">
         <img src={logoImg} className="sidebar-logo" onClick={goToDashboard} alt="Logo" />
+        <div onClick={() => setView('settings')} title={user?.username} style={{ cursor: 'pointer', margin: '0 auto 8px', width: 44, height: 44, borderRadius: '50%', overflow: 'hidden', border: '2px solid var(--primary-blue)', flexShrink: 0 }}>
+          {user?.avatar_url
+            ? <img src={user.avatar_url} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            : <div style={{ width: '100%', height: '100%', background: 'var(--primary-blue)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: '1.1rem' }}>
+                {user?.first_name?.[0]?.toUpperCase() || '?'}
+              </div>
+          }
+        </div>
         <nav className="sidebar-nav">
           <button className={`nav-icon-button ${view === 'dashboard' ? 'active' : ''}`} onClick={goToDashboard} title="Home">🏠</button>
           <button className={`nav-icon-button ${view === 'explore' ? 'active' : ''}`} onClick={() => setView('explore')} title="Explore">🔍</button>
@@ -394,7 +405,7 @@ function App() {
               </div>
             )}
           </div>
-          <div onClick={() => setView('settings')} style={{ cursor: 'pointer', fontWeight: 600 }}>Account ▾</div>
+          <div onClick={() => setView('settings')} style={{ cursor: 'pointer', fontWeight: 600 }}>@{user?.username} ▾</div>
         </header>
 
         <div className="content-area">
@@ -564,6 +575,7 @@ function App() {
                     <span>⏱️ {selectedRecipe.ttc} mins</span>
                     <span>👨‍🍳 Admin</span>
                     {selectedRecipe.tag && <span>🍽️ {selectedRecipe.tag}</span>}
+                    {selectedRecipe.view_count > 0 && <span>👁️ {selectedRecipe.view_count} {parseInt(selectedRecipe.view_count) === 1 ? 'view' : 'views'}</span>}
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '40px' }}>
                     <div>

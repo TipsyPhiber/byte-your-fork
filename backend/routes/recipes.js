@@ -80,11 +80,19 @@ router.post('/', authenticateToken, async (req, res) => {
   }
 });
 
+router.post('/:id/view', authenticateToken, async (req, res) => {
+  try {
+    await pool.query('INSERT INTO views (recipe_id, user_id) VALUES ($1, $2)', [req.params.id, req.user.id]);
+    res.json({ ok: true });
+  } catch { res.json({ ok: true }); }
+});
+
 router.get('/:id', async (req, res) => {
   const { id } = req.params;
   try {
     const recipeResult = await pool.query(`
-      SELECT r.*, i.url as image_url, t.name as tag
+      SELECT r.*, i.url as image_url, t.name as tag,
+        (SELECT COUNT(*) FROM views v WHERE v.recipe_id = r.id) as view_count
       FROM recipes r
       LEFT JOIN images i ON r.id = i.recipe_id
       LEFT JOIN recipe_tags t ON r.id = t.recipe_id

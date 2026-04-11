@@ -249,9 +249,9 @@ function Auth({ setToken, initialTab, onHome, onAbout }) {
                   </>
                 )}
                 <input
-                  type="email"
+                  type="text"
                   name="email"
-                  placeholder="Email"
+                  placeholder={isLogin ? "Email or Username" : "Email"}
                   value={formData.email}
                   onChange={handleChange}
                   required

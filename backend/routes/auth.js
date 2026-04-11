@@ -3,10 +3,21 @@ const router = express.Router();
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const multer = require('multer');
 const pool = require('../db');
 const { sendVerificationEmail, sendPasswordResetEmail } = require('../mailer');
 
 const { authenticateToken } = require('../middleware/auth');
+
+const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+const uploadAvatar = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (ALLOWED_MIME.includes(file.mimetype)) cb(null, true);
+    else cb(Object.assign(new Error('Only JPEG, PNG, WebP, or GIF images are allowed.'), { code: 'INVALID_TYPE' }));
+  }
+});
 
 router.get('/me', authenticateToken, async (req, res) => {
   try {
@@ -14,14 +25,18 @@ router.get('/me', authenticateToken, async (req, res) => {
     if (userResult.rows.length === 0) return res.status(404).json({ error: "User not found" });
 
     const user = userResult.rows[0];
-    const [adminResult, notifResult, prefResult] = await Promise.all([
+    const [adminResult, notifResult, prefResult, profileResult] = await Promise.all([
       pool.query('SELECT 1 FROM admins WHERE user_id = $1', [user.id]),
       pool.query('SELECT cleared_at FROM notification_settings WHERE user_id = $1', [user.id]),
-      pool.query('SELECT tag_name FROM user_preferences WHERE user_id = $1', [user.id])
+      pool.query('SELECT tag_name FROM user_preferences WHERE user_id = $1', [user.id]),
+      pool.query('SELECT avatar_url FROM user_profiles WHERE user_id = $1', [user.id])
     ]);
     user.role = adminResult.rows.length > 0 ? 'admin' : 'user';
     user.notifications_cleared_at = notifResult.rows[0]?.cleared_at || null;
     user.preferences = prefResult.rows.map(r => r.tag_name);
+    user.avatar_url = profileResult.rows[0]?.avatar_data
+      ? `http://localhost:5000/api/auth/avatar/${user.id}`
+      : null;
 
     res.json(user);
   } catch (err) {
@@ -260,7 +275,12 @@ router.post('/reset-password', async (req, res) => {
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;
   try {
-    const user = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    const identifier = email?.trim();
+    const isEmail = identifier?.includes('@');
+    const user = await pool.query(
+      isEmail ? 'SELECT * FROM users WHERE email = $1' : 'SELECT * FROM users WHERE username = $1',
+      [identifier]
+    );
     if (user.rows.length === 0) return res.status(401).json({ error: "Credentials bad" });
 
     const validPassword = await bcrypt.compare(password, user.rows[0].password_hash);
@@ -276,6 +296,78 @@ router.post('/login', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Server Error" });
+  }
+});
+
+router.put('/update-email', authenticateToken, async (req, res) => {
+  const { newEmail, password } = req.body;
+  if (!newEmail || !password) return res.status(400).json({ error: 'Email and password required.' });
+  try {
+    const userResult = await pool.query('SELECT password_hash FROM users WHERE id = $1', [req.user.id]);
+    if (userResult.rows.length === 0) return res.status(404).json({ error: 'User not found.' });
+    const valid = await bcrypt.compare(password, userResult.rows[0].password_hash);
+    if (!valid) return res.status(401).json({ error: 'Incorrect password.' });
+    await pool.query('UPDATE users SET email = $1 WHERE id = $2', [newEmail.trim().toLowerCase(), req.user.id]);
+    res.json({ message: 'Email updated successfully.' });
+  } catch (err) {
+    if (err.code === '23505') return res.status(409).json({ error: 'That email is already in use.' });
+    res.status(500).json({ error: 'Server Error' });
+  }
+});
+
+// Admin: grant or revoke admin by username (admin only)
+router.post('/admin/set-role', authenticateToken, async (req, res) => {
+  const { username, makeAdmin } = req.body;
+  try {
+    const callerAdmin = await pool.query('SELECT 1 FROM admins WHERE user_id = $1', [req.user.id]);
+    if (callerAdmin.rows.length === 0) return res.status(403).json({ error: 'Admins only.' });
+    const target = await pool.query('SELECT id FROM users WHERE username = $1', [username]);
+    if (target.rows.length === 0) return res.status(404).json({ error: 'User not found.' });
+    const targetId = target.rows[0].id;
+    if (makeAdmin) {
+      await pool.query('INSERT INTO admins (user_id) VALUES ($1) ON CONFLICT DO NOTHING', [targetId]);
+    } else {
+      await pool.query('DELETE FROM admins WHERE user_id = $1', [targetId]);
+    }
+    res.json({ message: `${username} is now ${makeAdmin ? 'an admin' : 'a regular user'}.` });
+  } catch (err) {
+    res.status(500).json({ error: 'Server Error' });
+  }
+});
+
+router.post('/avatar', authenticateToken, (req, res, next) => {
+  uploadAvatar.single('avatar')(req, res, (err) => {
+    if (err) {
+      if (err.code === 'LIMIT_FILE_SIZE') return res.status(400).json({ error: 'File too large. Maximum size is 5 MB.' });
+      if (err.code === 'INVALID_TYPE') return res.status(400).json({ error: err.message });
+      return res.status(400).json({ error: err.message });
+    }
+    next();
+  });
+}, async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded.' });
+  try {
+    await pool.query(`
+      INSERT INTO user_profiles (user_id, avatar_data, avatar_mime, updated_at)
+      VALUES ($1, $2, $3, NOW())
+      ON CONFLICT (user_id) DO UPDATE SET avatar_data = $2, avatar_mime = $3, updated_at = NOW()
+    `, [req.user.id, req.file.buffer, req.file.mimetype]);
+    res.json({ avatar_url: `http://localhost:5000/api/auth/avatar/${req.user.id}` });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to save avatar.' });
+  }
+});
+
+router.get('/avatar/:userId', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT avatar_data, avatar_mime FROM user_profiles WHERE user_id = $1', [req.params.userId]);
+    if (result.rows.length === 0 || !result.rows[0].avatar_data) return res.status(404).send('Not found');
+    res.set('Content-Type', result.rows[0].avatar_mime || 'image/jpeg');
+    res.set('Cache-Control', 'public, max-age=86400');
+    res.send(result.rows[0].avatar_data);
+  } catch {
+    res.status(500).send('Error');
   }
 });
 
