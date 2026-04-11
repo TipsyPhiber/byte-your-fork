@@ -357,7 +357,7 @@ function App() {
     <div className="app-container">
       <aside className="sidebar">
         <img src={logoImg} className="sidebar-logo" onClick={goToDashboard} alt="Logo" />
-        <div onClick={() => setView('settings')} title={user?.username} style={{ cursor: 'pointer', margin: '0 auto 8px', width: 44, height: 44, borderRadius: '50%', overflow: 'hidden', border: '2px solid var(--primary-blue)', flexShrink: 0 }}>
+        <div className="sidebar-avatar" onClick={() => setView('settings')} title={user?.username} style={{ cursor: 'pointer', margin: '0 auto 8px', width: 44, height: 44, borderRadius: '50%', overflow: 'hidden', border: '2px solid var(--primary-blue)', flexShrink: 0 }}>
           {user?.avatar_url
             ? <img src={user.avatar_url} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             : <div style={{ width: '100%', height: '100%', background: 'var(--primary-blue)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: '1.1rem' }}>
@@ -374,7 +374,7 @@ function App() {
             {visibleNotifs.length > 0 && <span className="notif-badge">{visibleNotifs.length}</span>}
           </button>
           {isAdmin && <button className={`nav-icon-button ${view === 'add-recipe' ? 'active' : ''}`} onClick={() => setView('add-recipe')} title="Add Recipe">➕</button>}
-          <button className={`nav-icon-button ${view === 'settings' ? 'active' : ''}`} style={{ marginTop: 'auto' }} onClick={() => setView('settings')} title="Settings">⚙️</button>
+          <button className={`nav-icon-button ${view === 'settings' ? 'active' : ''}`} onClick={() => setView('settings')} title="Settings">⚙️</button>
           <button className="nav-icon-button" onClick={handleLogout} title="Logout">🚪</button>
         </nav>
       </aside>
