@@ -109,6 +109,7 @@ function App() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [editForm, setEditForm] = useState(null);
   const [cookMode, setCookMode] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [favoritedIds, setFavoritedIds] = useState(new Set());
   const [favoriteRecipes, setFavoriteRecipes] = useState([]);
   const [notifications, setNotifications] = useState([]);
@@ -381,6 +382,9 @@ function App() {
 
       <main className="main-content">
         <header className="header-bar">
+          <button className="hamburger-btn" onClick={() => setMobileMenuOpen(true)} aria-label="Open menu">
+            <span /><span /><span />
+          </button>
           <div style={{ flex: 1 }}>
             {view === 'explore' && (
               <div className="search-container">
@@ -495,6 +499,34 @@ function App() {
           )}
         </div>
       </main>
+
+      {mobileMenuOpen && (
+        <div className="mobile-nav-overlay" onClick={() => setMobileMenuOpen(false)}>
+          <div className="mobile-nav-drawer" onClick={e => e.stopPropagation()}>
+            <img src={logoImg} className="mobile-nav-logo" onClick={() => { goToDashboard(); setMobileMenuOpen(false); }} alt="Logo" />
+            <div className="mobile-nav-user">
+              <div className="mobile-nav-avatar">
+                {user?.avatar_url
+                  ? <img src={user.avatar_url} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  : <span>{user?.first_name?.[0]?.toUpperCase() || '?'}</span>}
+              </div>
+              <span>{user?.first_name} {user?.last_name}</span>
+            </div>
+            <nav className="mobile-nav-links">
+              <button className={`mobile-nav-item ${view === 'dashboard' ? 'active' : ''}`} onClick={() => { goToDashboard(); setMobileMenuOpen(false); }}>🏠 <span>Home</span></button>
+              <button className={`mobile-nav-item ${view === 'explore' ? 'active' : ''}`} onClick={() => { setView('explore'); setMobileMenuOpen(false); }}>🔍 <span>Explore</span></button>
+              <button className={`mobile-nav-item ${view === 'favorites' ? 'active' : ''}`} onClick={() => { setView('favorites'); setMobileMenuOpen(false); }}>❤️ <span>Favorites</span></button>
+              <button className={`mobile-nav-item ${view === 'notifications' ? 'active' : ''}`} onClick={() => { setView('notifications'); setMobileMenuOpen(false); }}>
+                🔔 <span>Notifications</span>
+                {visibleNotifs.length > 0 && <span className="notif-badge">{visibleNotifs.length}</span>}
+              </button>
+              {isAdmin && <button className={`mobile-nav-item ${view === 'add-recipe' ? 'active' : ''}`} onClick={() => { setView('add-recipe'); setMobileMenuOpen(false); }}>➕ <span>Add Recipe</span></button>}
+              <button className={`mobile-nav-item ${view === 'settings' ? 'active' : ''}`} onClick={() => { setView('settings'); setMobileMenuOpen(false); }}>⚙️ <span>Settings</span></button>
+              <button className="mobile-nav-item mobile-nav-logout" onClick={() => { handleLogout(); setMobileMenuOpen(false); }}>🚪 <span>Logout</span></button>
+            </nav>
+          </div>
+        </div>
+      )}
 
       {cookMode && selectedRecipe && (
         <CookMode
