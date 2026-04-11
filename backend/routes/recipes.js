@@ -14,12 +14,13 @@ router.get('/', async (req, res) => {
 
 router.post('/', authenticateToken, async (req, res) => {
   const { title, ttc, ingredients, steps } = req.body;
+  const userId = req.user.id;
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     const recipeResult = await client.query(
-      'INSERT INTO recipes (title, ttc) VALUES ($1, $2) RETURNING id',
-      [title, ttc]
+      'INSERT INTO recipes (title, ttc, user_id) VALUES ($1, $2, $3) RETURNING id',
+      [title, ttc, userId]
     );
     const recipeId = recipeResult.rows[0].id;
 
@@ -52,6 +53,33 @@ router.post('/', authenticateToken, async (req, res) => {
     res.status(500).json({ error: "Process Failed" });
   } finally {
     client.release();
+  }
+});
+
+router.get('/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const recipeResult = await pool.query('SELECT * FROM recipes WHERE id = $1', [id]);
+    if (recipeResult.rows.length === 0) return res.status(404).json({ error: "Recipe Not Found" });
+
+    const recipe = recipeResult.rows[0];
+
+    const ingredientsResult = await pool.query(
+      'SELECT i.name, a.name as amount FROM ingredients i LEFT JOIN amount a ON i.id = a.ingredient_id WHERE i.recipe_id = $1',
+      [id]
+    );
+    recipe.ingredients = ingredientsResult.rows;
+
+    const stepsResult = await pool.query(
+      'SELECT instruction FROM steps WHERE recipe_id = $1 ORDER BY id',
+      [id]
+    );
+    recipe.steps = stepsResult.rows.map(r => r.instruction);
+
+    res.json(recipe);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Fetch Failed" });
   }
 });
 

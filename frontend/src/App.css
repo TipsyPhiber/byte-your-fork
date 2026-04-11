@@ -1,144 +1,206 @@
 :root {
-  --primary-blue: #0056b3;
-  --light-blue: #e6f0fa;
+  --primary-blue: #38bdf8;
+  --dark-blue: #1e40af;
+  --light-blue: #f3f4f6;
   --white: #ffffff;
-  --text-dark: #333333;
-  --text-light: #666666;
+  --text-dark: #111827;
+  --text-light: #4b5563;
+  --accent-indigo: #6366f1;
 }
 
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   background-color: var(--light-blue);
   color: var(--text-dark);
 }
 
 .app-container {
   display: flex;
-  min-height: 100vh;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
 }
 
 /* Sidebar Styling */
 .sidebar {
-  width: 250px;
-  background-color: var(--primary-blue);
+  width: 260px;
+  background-color: var(--dark-blue);
   color: var(--white);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+  z-index: 10;
+}
+
+.sidebar-header {
+  height: 4rem;
+  background-color: var(--primary-blue);
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  box-sizing: border-box;
+}
+
+.sidebar-header h1 {
+  font-size: 1.2rem;
+  margin: 0;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: white;
+}
+
+.sidebar-nav {
   padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: 15px;
-}
-
-.sidebar h1 {
-  font-size: 1.5rem;
-  margin-bottom: 30px;
-  border-bottom: 2px solid var(--light-blue);
-  padding-bottom: 10px;
-}
-
-.nav-button {
-  background: none;
-  border: 1px solid transparent;
-  color: var(--white);
-  padding: 10px 15px;
-  text-align: left;
-  font-size: 1.1rem;
-  cursor: pointer;
-  border-radius: 5px;
-  transition: background-color 0.3s;
-}
-
-.nav-button:hover {
-  background-color: rgba(255, 255, 255, 0.1);
-  border: 1px solid var(--light-blue);
+  gap: 10px;
+  flex: 1;
 }
 
 .logout-button {
-  color: #ffcccc;
+  margin-top: auto;
+  color: #fca5a5;
 }
+
 .logout-button:hover {
-  background-color: rgba(255, 0, 0, 0.2);
-  border-color: transparent;
+  background-color: rgba(239, 68, 68, 0.2);
+  color: #fee2e2;
 }
 
 /* Main Content Styling */
 .main-content {
   flex: 1;
-  padding: 40px;
-  background-color: var(--white);
-  border-top-left-radius: 20px;
-  border-bottom-left-radius: 20px;
-  box-shadow: -5px 0 15px rgba(0,0,0,0.05);
-  margin: 10px 10px 10px 0;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--light-blue);
+  overflow: hidden;
 }
 
 .header-bar {
+  height: 4rem;
+  background-color: var(--white);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 30px;
+  padding: 0 30px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+  box-sizing: border-box;
+  z-index: 5;
+}
+
+.search-container {
+  position: relative;
+  width: 400px;
 }
 
 .search-bar {
-  padding: 10px 15px;
-  width: 300px;
-  border: 1px solid #ccc;
-  border-radius: 20px;
+  padding: 10px 15px 10px 40px;
+  width: 100%;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
   outline: none;
+  font-size: 0.95rem;
+  background-color: #f9fafb;
 }
 
 .search-bar:focus {
   border-color: var(--primary-blue);
+  background-color: white;
+}
+
+.content-area {
+  flex: 1;
+  padding: 30px;
+  overflow-y: auto;
 }
 
 .recipe-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 25px;
 }
 
 .recipe-card {
-  background-color: var(--light-blue);
-  border-radius: 10px;
+  background-color: var(--white);
+  border-radius: 15px;
   padding: 20px;
   text-align: center;
-  border: 1px solid #cce0f5;
-  transition: transform 0.2s;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+  transition: transform 0.2s, box-shadow 0.2s;
+  border: 1px solid #f3f4f6;
 }
 
 .recipe-card:hover {
   transform: translateY(-5px);
+  box-shadow: 0 8px 25px rgba(0,0,0,0.1);
 }
 
 .recipe-card h3 {
-  color: var(--primary-blue);
+  color: var(--dark-blue);
   margin-top: 0;
+  font-size: 1.25rem;
+  margin-bottom: 10px;
 }
 
-/* Auth Component Styling */
+.primary-button {
+  background-color: var(--accent-indigo);
+  color: var(--white);
+  padding: 10px 24px;
+  border: none;
+  border-radius: 20px;
+  font-size: 0.95rem;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s;
+}
+
+.primary-button:hover {
+  background-color: #4f46e5;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+.nav-button {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.8);
+  padding: 12px 15px;
+  text-align: left;
+  font-size: 1rem;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: all 0.2s;
+  font-weight: 500;
+}
+
+.nav-button:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.nav-button.active {
+  background-color: var(--accent-indigo);
+  color: white;
+}
+
+/* Auth Styles for reference */
 .auth-container {
   display: flex;
-  justify-content: center;
-  align-items: center;
   height: 100vh;
   width: 100vw;
-  background-color: var(--primary-blue);
+  overflow: hidden;
 }
 
 .auth-card {
   background-color: var(--white);
   padding: 40px;
-  border-radius: 10px;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.1);
   width: 100%;
   max-width: 400px;
   text-align: center;
-}
-
-.auth-card h2 {
-  color: var(--primary-blue);
-  margin-top: 0;
-  margin-bottom: 20px;
 }
 
 .auth-form {
@@ -149,49 +211,24 @@ body {
 
 .auth-form input {
   padding: 12px;
-  border: 1px solid #ccc;
-  border-radius: 5px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
   font-size: 1rem;
   outline: none;
 }
 
-.auth-form input:focus {
-  border-color: var(--primary-blue);
-}
-
-.primary-button {
-  background-color: var(--primary-blue);
-  color: var(--white);
-  padding: 12px;
-  border: none;
-  border-radius: 5px;
-  font-size: 1rem;
-  cursor: pointer;
-  font-weight: bold;
-  transition: background-color 0.3s;
-}
-
-.primary-button:hover {
-  background-color: #004494;
-}
-
-.toggle-text {
-  margin-top: 20px;
+.error-message {
+  color: #dc2626;
+  background-color: #fee2e2;
+  padding: 10px;
+  border-radius: 6px;
+  margin-bottom: 15px;
   font-size: 0.9rem;
 }
 
 .toggle-link {
-  color: var(--primary-blue);
+  color: var(--accent-indigo);
   cursor: pointer;
-  font-weight: bold;
+  font-weight: 600;
   text-decoration: underline;
-}
-
-.error-message {
-  color: #d9534f;
-  background-color: #fdf7f7;
-  padding: 10px;
-  border-radius: 5px;
-  margin-bottom: 15px;
-  font-size: 0.9rem;
 }
