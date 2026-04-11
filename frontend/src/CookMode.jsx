@@ -129,6 +129,19 @@ export default function CookMode({ recipe, token, onExit }) {
       setTranscript(said);
       const lower = said.toLowerCase().trim();
 
+      // "go to step 3", "jump to step five", "step 2", etc.
+      const stepMatch = lower.match(/(?:go to|jump to|skip to|step)\s+(?:step\s+)?(\d+|one|two|three|four|five|six|seven|eight|nine|ten)/);
+      if (stepMatch) {
+        const words = { one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10 };
+        const target = (parseInt(stepMatch[1]) || words[stepMatch[1]] || 1) - 1;
+        const clamped = Math.max(0, Math.min(target, stepCount - 1));
+        setCurrentStep(clamped);
+        wsRef.current?.send(JSON.stringify({ type: 'update_step', step: clamped }));
+        setAiText(`Going to step ${clamped + 1}.`);
+        speak(`Going to step ${clamped + 1}.`);
+        return;
+      }
+
       if (/\b(next|next step|go next|move on|continue)\b/.test(lower)) {
         setCurrentStep(s => {
           const next = Math.min(s + 1, stepCount - 1);
