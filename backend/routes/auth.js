@@ -92,6 +92,7 @@ router.put('/update-username', authenticateToken, async (req, res) => {
 router.put('/update-password', authenticateToken, async (req, res) => {
   const { currentPassword, newPassword } = req.body;
   if (!newPassword) return res.status(400).json({ error: "New password is required" });
+  if (newPassword.length > 15) return res.status(400).json({ error: 'Password must not exceed 15 characters.' });
   
   try {
     const userResult = await pool.query('SELECT password_hash FROM users WHERE id = $1', [req.user.id]);
@@ -124,6 +125,7 @@ router.put('/update-password', authenticateToken, async (req, res) => {
 
 router.post('/signup', async (req, res) => {
   const { first_name, surname, username, email, password } = req.body;
+  if (password && password.length > 15) return res.status(400).json({ error: 'Password must not exceed 15 characters.' });
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
     const encEmail = encrypt(email.trim().toLowerCase());
@@ -261,7 +263,8 @@ router.post('/forgot-password', async (req, res) => {
 router.post('/reset-password', async (req, res) => {
   const { token, newPassword } = req.body;
   if (!token || !newPassword) return res.status(400).json({ error: "Token and new password are required" });
-  if (newPassword.length < 8) return res.status(400).json({ error: "Password must be at least 8 characters" });
+  if (newPassword.length < 8) return res.status(400).json({ error: "Password must be at least 8 characters." });
+  if (newPassword.length > 15) return res.status(400).json({ error: "Password must not exceed 15 characters." });
 
   try {
     const tokenResult = await pool.query(

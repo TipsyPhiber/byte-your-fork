@@ -259,7 +259,8 @@ function Auth({ setToken, initialTab, onHome, onAbout }) {
                 <input
                   type="password"
                   name="password"
-                  placeholder="Password"
+                  placeholder="Password (max 15 characters)"
+                  maxLength={15}
                   value={formData.password}
                   onChange={handleChange}
                   required

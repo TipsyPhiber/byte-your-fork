@@ -226,13 +226,14 @@ const Settings = ({ user, setUser, token, onPreferencesChange }) => {
             value={currentPassword} 
             onChange={(e) => setCurrentPassword(e.target.value)} 
           />
-          <input 
-            type="password" 
-            className="search-bar" 
+          <input
+            type="password"
+            className="search-bar"
             style={{ paddingLeft: '15px' }}
-            placeholder="New Password" 
-            value={newPassword} 
-            onChange={(e) => setNewPassword(e.target.value)} 
+            placeholder="New Password (max 15 characters)"
+            maxLength={15}
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
           />
           <button type="submit" className="primary-button">Update Password</button>
         </form>

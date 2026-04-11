@@ -48,8 +48,8 @@ function ResetPasswordForm({ token, onDone }) {
           <>
             {error && <p className="error-message">{error}</p>}
             <form onSubmit={handleSubmit} className="auth-form">
-              <input type="password" placeholder="New password" value={newPassword} onChange={e => setNewPassword(e.target.value)} required />
-              <input type="password" placeholder="Confirm password" value={confirm} onChange={e => setConfirm(e.target.value)} required />
+              <input type="password" placeholder="New password (max 15 characters)" maxLength={15} value={newPassword} onChange={e => setNewPassword(e.target.value)} required />
+              <input type="password" placeholder="Confirm password" maxLength={15} value={confirm} onChange={e => setConfirm(e.target.value)} required />
               <button type="submit" className="primary-button" style={{ backgroundColor: '#6366f1' }} disabled={loading}>
                 {loading ? 'Resetting...' : 'Reset Password'}
               </button>
