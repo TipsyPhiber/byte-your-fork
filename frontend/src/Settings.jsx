@@ -27,19 +27,21 @@ const Settings = ({ user, setUser, token }) => {
   const handleUpdatePassword = async (e) => {
     e.preventDefault();
     try {
-      await axios.put('http://localhost:5000/api/auth/update-password', 
+      const response = await axios.put('http://localhost:5000/api/auth/update-password', 
         { currentPassword, newPassword },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      alert('Password updated successfully!');
+      alert(response.data.message || 'Password updated successfully!');
       setMessage('Password updated successfully!');
       setError('');
       setCurrentPassword('');
       setNewPassword('');
     } catch (err) {
-      const errMsg = err.response?.data?.error || 'Failed to update password.';
-      setError(errMsg);
-      alert('Error: ' + errMsg);
+      console.error('Password Update Catch:', err);
+      const errMsg = err.response?.data?.error || err.response?.data || 'Failed to update password.';
+      const finalMsg = typeof errMsg === 'string' ? errMsg : JSON.stringify(errMsg);
+      setError(finalMsg);
+      alert('Error: ' + finalMsg);
       setMessage('');
     }
   };

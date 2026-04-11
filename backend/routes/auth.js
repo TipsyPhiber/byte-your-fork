@@ -8,7 +8,7 @@ const { authenticateToken } = require('../middleware/auth');
 
 router.get('/me', authenticateToken, async (req, res) => {
   try {
-    const user = await pool.query('SELECT id, first_name, surname, username, email, role FROM users WHERE id = $1', [req.user.id]);
+    const user = await pool.query('SELECT id, first_name, surname, username, email FROM users WHERE id = $1', [req.user.id]);
     if (user.rows.length === 0) return res.status(404).json({ error: "User not found" });
     res.json(user.rows[0]);
   } catch (err) {
