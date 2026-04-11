@@ -30,13 +30,13 @@ router.get('/me', authenticateToken, async (req, res) => {
       pool.query('SELECT 1 FROM admins WHERE user_id = $1', [user.id]),
       pool.query('SELECT cleared_at FROM notification_settings WHERE user_id = $1', [user.id]),
       pool.query('SELECT tag_name FROM user_preferences WHERE user_id = $1', [user.id]),
-      pool.query('SELECT avatar_url FROM user_profiles WHERE user_id = $1', [user.id])
+      pool.query('SELECT updated_at, (avatar_data IS NOT NULL) as has_avatar FROM user_profiles WHERE user_id = $1', [user.id])
     ]);
     user.role = adminResult.rows.length > 0 ? 'admin' : 'user';
     user.notifications_cleared_at = notifResult.rows[0]?.cleared_at || null;
     user.preferences = prefResult.rows.map(r => decrypt(r.tag_name));
-    user.avatar_url = profileResult.rows[0]?.avatar_data
-      ? `http://localhost:5000/api/auth/avatar/${user.id}`
+    user.avatar_url = profileResult.rows[0]?.has_avatar
+      ? `http://localhost:5000/api/auth/avatar/${user.id}?t=${profileResult.rows[0].updated_at?.getTime?.() || Date.now()}`
       : null;
     user.email = decrypt(user.email);
 
@@ -383,7 +383,7 @@ router.post('/avatar', authenticateToken, (req, res, next) => {
       VALUES ($1, $2, $3, NOW())
       ON CONFLICT (user_id) DO UPDATE SET avatar_data = $2, avatar_mime = $3, updated_at = NOW()
     `, [req.user.id, req.file.buffer, req.file.mimetype]);
-    res.json({ avatar_url: `http://localhost:5000/api/auth/avatar/${req.user.id}` });
+    res.json({ avatar_url: `http://localhost:5000/api/auth/avatar/${req.user.id}?t=${Date.now()}` });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to save avatar.' });
