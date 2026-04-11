@@ -12,7 +12,10 @@ async function fetchImageBuffer(url) {
   }
 }
 
+const toTitleCase = str => str.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+
 async function saveRecipe(r) {
+  r.title = toTitleCase(r.title);
   // Skip if recipe already exists
   const existing = await pool.query('SELECT id FROM recipes WHERE title = $1', [r.title]);
   if (existing.rows.length > 0) {

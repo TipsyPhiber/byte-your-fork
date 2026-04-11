@@ -19,7 +19,8 @@ router.get('/', async (req, res) => {
 });
 
 router.post('/', authenticateToken, async (req, res) => {
-  const { title, ttc, ingredients, steps, imageUrl } = req.body;
+  const { ttc, ingredients, steps, imageUrl } = req.body;
+  const title = req.body.title?.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
   const userId = req.user.id;
 
   const adminResult = await pool.query('SELECT 1 FROM admins WHERE user_id = $1', [userId]);
@@ -135,7 +136,8 @@ router.put('/:id', authenticateToken, async (req, res) => {
   const adminResult = await pool.query('SELECT 1 FROM admins WHERE user_id = $1', [req.user.id]);
   if (adminResult.rows.length === 0) return res.status(403).json({ error: "Admins only" });
 
-  const { title, ttc, ingredients, steps } = req.body;
+  const { ttc, ingredients, steps } = req.body;
+  const title = req.body.title?.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
   const client = await pool.connect();
   try {
     await client.query('BEGIN');

@@ -7,7 +7,59 @@ import LandingPage from './LandingPage';
 import About from './About';
 import Settings from './Settings';
 import AddRecipe from './AddRecipe';
+import CookMode from './CookMode';
 import logoImg from '../Images/souschef_logo.png';
+
+function ResetPasswordForm({ token, onDone }) {
+  const [newPassword, setNewPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [status, setStatus] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (newPassword !== confirm) return setError("Passwords don't match.");
+    if (newPassword.length < 8) return setError("Password must be at least 8 characters.");
+    setLoading(true);
+    setError('');
+    try {
+      const res = await axios.post('http://localhost:5000/api/auth/reset-password', { token, newPassword });
+      setStatus(res.data.message);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Something went wrong. The link may have expired.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{ display: 'flex', height: '100vh', width: '100vw', alignItems: 'center', justifyContent: 'center', background: '#f3f4f6' }}>
+      <div className="auth-card" style={{ boxShadow: '0 10px 25px rgba(0,0,0,0.1)' }}>
+        <h2>Set New Password</h2>
+        {status ? (
+          <>
+            <p style={{ textAlign: 'center', color: '#16a34a', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '10px 14px', fontSize: '0.9rem' }}>{status}</p>
+            <p className="toggle-text" style={{ marginTop: '16px' }}>
+              <span onClick={onDone} className="toggle-link" style={{ color: '#6366f1' }}>Go to Login →</span>
+            </p>
+          </>
+        ) : (
+          <>
+            {error && <p className="error-message">{error}</p>}
+            <form onSubmit={handleSubmit} className="auth-form">
+              <input type="password" placeholder="New password" value={newPassword} onChange={e => setNewPassword(e.target.value)} required />
+              <input type="password" placeholder="Confirm password" value={confirm} onChange={e => setConfirm(e.target.value)} required />
+              <button type="submit" className="primary-button" style={{ backgroundColor: '#6366f1' }} disabled={loading}>
+                {loading ? 'Resetting...' : 'Reset Password'}
+              </button>
+            </form>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
 
 const API_BASE = 'http://localhost:5000/api';
 const FALLBACK_IMG = 'https://images.unsplash.com/photo-1495195129352-aec325a55b65?auto=format&fit=crop&w=600&q=80';
@@ -44,8 +96,11 @@ function App() {
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [editForm, setEditForm] = useState(null);
+  const [cookMode, setCookMode] = useState(false);
   const [favoritedIds, setFavoritedIds] = useState(new Set());
   const [favoriteRecipes, setFavoriteRecipes] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [clearedAt, setClearedAt] = useState(null);
 
   const fetchRecipes = useCallback(async () => {
     try {
@@ -65,6 +120,13 @@ function App() {
     } catch { /* ignore */ }
   }, []);
 
+  const fetchNotifications = useCallback(async (t) => {
+    try {
+      const res = await axios.get(`${API_BASE}/notifications`, { headers: { Authorization: `Bearer ${t}` } });
+      setNotifications(res.data);
+    } catch { /* ignore */ }
+  }, []);
+
   useEffect(() => {
     if (!token) return;
     let isMounted = true;
@@ -73,14 +135,16 @@ function App() {
         const profile = await axios.get(`${API_BASE}/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
         if (isMounted) {
           setUser(profile.data);
+          setClearedAt(profile.data.notifications_cleared_at || null);
           fetchRecipes();
           fetchFavorites(token);
+          fetchNotifications(token);
         }
       } catch (err) { if (err.response?.status === 401) { localStorage.removeItem('token'); setToken(null); } }
     }
     init();
     return () => { isMounted = false; };
-  }, [token, fetchRecipes, fetchFavorites]);
+  }, [token, fetchRecipes, fetchFavorites, fetchNotifications]);
 
   useEffect(() => {
     if (searchQuery.trim().length >= 2) {
@@ -150,12 +214,46 @@ function App() {
 
   const isAdmin = user?.role === 'admin' || user?.id === 1;
 
+  const handleClearNotifications = async () => {
+    try {
+      const res = await axios.put(`${API_BASE}/auth/clear-notifications`, {}, { headers: { Authorization: `Bearer ${token}` } });
+      setClearedAt(res.data.cleared_at);
+    } catch { /* ignore */ }
+  };
+
+  const handleDismissNotification = async (e, recipeId) => {
+    e.stopPropagation();
+    try {
+      await axios.delete(`${API_BASE}/notifications/${recipeId}`, { headers: { Authorization: `Bearer ${token}` } });
+      setNotifications(prev => prev.filter(n => n.id !== recipeId));
+    } catch { /* ignore */ }
+  };
+
+  const visibleNotifs = clearedAt
+    ? notifications.filter(n => new Date(n.creation_date) > new Date(clearedAt))
+    : notifications;
+
   const allTags = ['All', ...Array.from(new Set(recipes.map(r => r.tag).filter(Boolean))).sort()];
   const filteredRecipes = activeTag === 'All' ? recipes : recipes.filter(r => r.tag === activeTag);
 
-  const closeModal = () => { setSelectedRecipe(null); setEditForm(null); };
+  const closeModal = () => { setSelectedRecipe(null); setEditForm(null); setCookMode(false); };
 
   if (!token) {
+    // Handle password reset link: ?reset_token=xxx
+    const urlParams = new URLSearchParams(window.location.search);
+    const resetToken = urlParams.get('reset_token');
+    if (resetToken) {
+      return (
+        <ResetPasswordForm
+          token={resetToken}
+          onDone={() => {
+            window.history.replaceState({}, '', window.location.pathname);
+            setView('login');
+          }}
+        />
+      );
+    }
+
     const commonProps = { setToken: (t, u) => { setToken(t); setUser(u); setView('dashboard'); localStorage.setItem('token', t); }, onHome: () => setView('landing'), onAbout: () => setView('about') };
     if (view === 'login') return <Auth {...commonProps} initialTab="login" />;
     if (view === 'signup') return <Auth {...commonProps} initialTab="signup" />;
@@ -171,6 +269,10 @@ function App() {
           <button className={`nav-icon-button ${view === 'dashboard' ? 'active' : ''}`} onClick={() => setView('dashboard')} title="Home">🏠</button>
           <button className={`nav-icon-button ${view === 'explore' ? 'active' : ''}`} onClick={() => setView('explore')} title="Explore">🔍</button>
           <button className={`nav-icon-button ${view === 'favorites' ? 'active' : ''}`} onClick={() => setView('favorites')} title="Favorites">❤️</button>
+          <button className={`nav-icon-button ${view === 'notifications' ? 'active' : ''}`} onClick={() => setView('notifications')} title="Notifications" style={{ position: 'relative' }}>
+            🔔
+            {visibleNotifs.length > 0 && <span className="notif-badge">{visibleNotifs.length}</span>}
+          </button>
           {isAdmin && <button className={`nav-icon-button ${view === 'add-recipe' ? 'active' : ''}`} onClick={() => setView('add-recipe')} title="Add Recipe">➕</button>}
           <button className={`nav-icon-button ${view === 'settings' ? 'active' : ''}`} style={{ marginTop: 'auto' }} onClick={() => setView('settings')} title="Settings">⚙️</button>
           <button className="nav-icon-button" onClick={handleLogout} title="Logout">🚪</button>
@@ -225,6 +327,44 @@ function App() {
             </div>
           )}
 
+          {view === 'notifications' && (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                <div>
+                  <h2 style={{ margin: 0, color: 'var(--dark-blue)' }}>Recent Additions</h2>
+                  <p style={{ margin: '4px 0 0', color: 'var(--text-light)', fontSize: '0.9rem' }}>Recipes added in the last 30 days</p>
+                </div>
+                {visibleNotifs.length > 0 && (
+                  <button className="tag-pill" onClick={handleClearNotifications}>Clear All</button>
+                )}
+              </div>
+
+              {visibleNotifs.length === 0
+                ? <div style={{ textAlign: 'center', padding: '80px 0', color: 'var(--text-light)' }}>
+                    <div style={{ fontSize: '3rem', marginBottom: '16px' }}>🔔</div>
+                    <p style={{ margin: 0, fontWeight: 600 }}>You're all caught up!</p>
+                    <p style={{ margin: '8px 0 0', fontSize: '0.9rem' }}>No new recipes since you last checked.</p>
+                  </div>
+                : <div className="notif-grid">
+                    {visibleNotifs.map(n => (
+                      <div key={n.id} className="notif-card" onClick={() => openRecipe(n.id)}>
+                        <img src={n.image_url || FALLBACK_IMG} onError={e => e.target.src = FALLBACK_IMG} alt="" className="notif-img" />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontWeight: 700, color: 'var(--dark-blue)', marginBottom: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{n.title}</div>
+                          <div style={{ fontSize: '0.8rem', color: 'var(--text-light)' }}>
+                            {n.tag && <span style={{ marginRight: '10px' }}>🍽️ {n.tag}</span>}
+                            <span>Added {new Date(n.creation_date).toLocaleDateString()}</span>
+                          </div>
+                        </div>
+                        <span className="notif-new-badge">NEW</span>
+                        <button className="notif-dismiss" onClick={e => handleDismissNotification(e, n.id)} title="Dismiss">✕</button>
+                      </div>
+                    ))}
+                  </div>
+              }
+            </div>
+          )}
+
           {view === 'favorites' && (
             <div>
               <h2 style={{ marginBottom: '20px', color: 'var(--dark-blue)' }}>Your Favorites</h2>
@@ -240,7 +380,15 @@ function App() {
         </div>
       </main>
 
-      {selectedRecipe && (
+      {cookMode && selectedRecipe && (
+        <CookMode
+          recipe={selectedRecipe}
+          token={token}
+          onExit={() => setCookMode(false)}
+        />
+      )}
+
+      {selectedRecipe && !cookMode && (
         <div className="modal-overlay" onClick={closeModal}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
             <button className="modal-close-btn" onClick={closeModal}>✕</button>
@@ -288,7 +436,7 @@ function App() {
                 <div className="modal-scroll">
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
                     <h1 style={{ fontSize: '2.5rem', color: 'var(--dark-blue)', margin: 0 }}>{selectedRecipe.title}</h1>
-                    <div style={{ display: 'flex', gap: '8px', flexShrink: 0, marginLeft: '16px', paddingTop: '8px' }}>
+                    <div style={{ display: 'flex', gap: '8px', flexShrink: 0, marginLeft: '16px', paddingTop: '8px', alignItems: 'center' }}>
                       <button
                         className={`heart-btn ${favoritedIds.has(selectedRecipe.id) ? 'favorited' : ''}`}
                         style={{ position: 'static', fontSize: '1.5rem', background: 'none', border: 'none', cursor: 'pointer' }}
@@ -296,6 +444,9 @@ function App() {
                         title={favoritedIds.has(selectedRecipe.id) ? 'Unfavorite' : 'Save to Favorites'}
                       >
                         {favoritedIds.has(selectedRecipe.id) ? '❤️' : '🤍'}
+                      </button>
+                      <button className="primary-button" style={{ padding: '10px 20px', fontSize: '0.9rem' }} onClick={() => setCookMode(true)}>
+                        👨‍🍳 Cook Mode
                       </button>
                       {isAdmin && (
                         <>
