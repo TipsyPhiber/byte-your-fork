@@ -19,7 +19,7 @@ jobs:
             cd ~/ByteYourFork
             git pull origin main
             cd frontend
-            npm ci
+            npm install
             npm run build
             chmod -R o+r dist
             cd ..
