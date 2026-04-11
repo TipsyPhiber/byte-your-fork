@@ -16,9 +16,23 @@ export default function CookMode({ recipe, token, onExit }) {
   const [transcript, setTranscript] = useState('');
   const [aiText, setAiText] = useState('');
   const [ready, setReady] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
 
   const wsRef = useRef(null);
   const recognizerRef = useRef(null);
+
+  // Elapsed cook timer
+  useEffect(() => {
+    const id = setInterval(() => setElapsed(s => s + 1), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const formatTime = (secs) => {
+    const h = Math.floor(secs / 3600);
+    const m = Math.floor((secs % 3600) / 60).toString().padStart(2, '0');
+    const s = (secs % 60).toString().padStart(2, '0');
+    return h > 0 ? `${h}:${m}:${s}` : `${m}:${s}`;
+  };
   const steps = cleanSteps(recipe.steps);
   const stepCount = steps.length;
 
@@ -189,7 +203,7 @@ export default function CookMode({ recipe, token, onExit }) {
         <div className="cook-mode-header">
           <div>
             <div className="cook-mode-title">{recipe.title}</div>
-            <div className="cook-mode-subtitle">Step {currentStep + 1} of {stepCount} · {status}</div>
+            <div className="cook-mode-subtitle">Step {currentStep + 1} of {stepCount} · {status} · ⏱️ {formatTime(elapsed)}</div>
           </div>
           <button className="cook-mode-exit" onClick={() => { stopSpeaking(); onExit(); }}>
             Exit Cook Mode
