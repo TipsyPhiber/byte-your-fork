@@ -6,10 +6,14 @@ const { authenticateToken } = require('../middleware/auth');
 router.get('/', async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT r.*, i.url as image_url, t.name as tag
+      SELECT r.*, i.url as image_url, t.name as tag,
+        ROUND(AVG(rt.rating)::numeric, 1) as avg_rating,
+        COUNT(rt.rating) as rating_count
       FROM recipes r
       LEFT JOIN images i ON r.id = i.recipe_id
       LEFT JOIN recipe_tags t ON r.id = t.recipe_id
+      LEFT JOIN ratings rt ON r.id = rt.recipe_id
+      GROUP BY r.id, i.url, t.name
       ORDER BY r.creation_date DESC
     `);
     res.json(result.rows);

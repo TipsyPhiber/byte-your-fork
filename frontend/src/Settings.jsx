@@ -1,12 +1,38 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
-const Settings = ({ user, setUser, token }) => {
+const ALL_CUISINES = ['Italian', 'Asian', 'Mediterranean', 'Indian', 'Southwest', 'Mexican', 'American', 'Thai', 'Middle Eastern', 'Cajun'];
+
+const Settings = ({ user, setUser, token, onPreferencesChange }) => {
   const [username, setUsername] = useState(user?.username || '');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [preferences, setPreferences] = useState(user?.preferences || []);
+  const [prefMessage, setPrefMessage] = useState('');
+
+  useEffect(() => {
+    setPreferences(user?.preferences || []);
+  }, [user?.preferences]);
+
+  const togglePreference = (tag) => {
+    setPreferences(prev =>
+      prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
+    );
+  };
+
+  const handleSavePreferences = async () => {
+    try {
+      await axios.put('http://localhost:5000/api/auth/preferences', { preferences }, { headers: { Authorization: `Bearer ${token}` } });
+      setUser({ ...user, preferences });
+      if (onPreferencesChange) onPreferencesChange(preferences);
+      setPrefMessage('Preferences saved!');
+      setTimeout(() => setPrefMessage(''), 2000);
+    } catch {
+      setPrefMessage('Failed to save.');
+    }
+  };
 
   const handleUpdateUsername = async (e) => {
     e.preventDefault();
@@ -66,6 +92,26 @@ const Settings = ({ user, setUser, token }) => {
           />
           <button type="submit" className="primary-button">Save Username</button>
         </form>
+      </div>
+
+      <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '15px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)', marginBottom: '30px' }}>
+        <h3 style={{ marginTop: 0, marginBottom: '8px' }}>Cuisine Preferences</h3>
+        <p style={{ margin: '0 0 16px', color: 'var(--text-light)', fontSize: '0.9rem' }}>Your dashboard will default to showing these cuisines first.</p>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '16px' }}>
+          {ALL_CUISINES.map(tag => (
+            <button
+              key={tag}
+              onClick={() => togglePreference(tag)}
+              className={`tag-pill ${preferences.includes(tag) ? 'active' : ''}`}
+            >
+              {tag}
+            </button>
+          ))}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <button className="primary-button" onClick={handleSavePreferences}>Save Preferences</button>
+          {prefMessage && <span style={{ color: '#059669', fontSize: '0.9rem' }}>{prefMessage}</span>}
+        </div>
       </div>
 
       <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '15px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)' }}>

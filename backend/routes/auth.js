@@ -14,14 +14,31 @@ router.get('/me', authenticateToken, async (req, res) => {
     if (userResult.rows.length === 0) return res.status(404).json({ error: "User not found" });
 
     const user = userResult.rows[0];
-    const [adminResult, notifResult] = await Promise.all([
+    const [adminResult, notifResult, prefResult] = await Promise.all([
       pool.query('SELECT 1 FROM admins WHERE user_id = $1', [user.id]),
-      pool.query('SELECT cleared_at FROM notification_settings WHERE user_id = $1', [user.id])
+      pool.query('SELECT cleared_at FROM notification_settings WHERE user_id = $1', [user.id]),
+      pool.query('SELECT tag_name FROM user_preferences WHERE user_id = $1', [user.id])
     ]);
     user.role = adminResult.rows.length > 0 ? 'admin' : 'user';
     user.notifications_cleared_at = notifResult.rows[0]?.cleared_at || null;
+    user.preferences = prefResult.rows.map(r => r.tag_name);
 
     res.json(user);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server Error" });
+  }
+});
+
+router.put('/preferences', authenticateToken, async (req, res) => {
+  const { preferences } = req.body; // array of tag names
+  if (!Array.isArray(preferences)) return res.status(400).json({ error: "preferences must be an array" });
+  try {
+    await pool.query('DELETE FROM user_preferences WHERE user_id = $1', [req.user.id]);
+    for (const tag of preferences) {
+      await pool.query('INSERT INTO user_preferences (user_id, tag_name) VALUES ($1, $2) ON CONFLICT DO NOTHING', [req.user.id, tag]);
+    }
+    res.json({ preferences });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Server Error" });
@@ -44,10 +61,12 @@ router.put('/clear-notifications', authenticateToken, async (req, res) => {
 
 router.put('/update-username', authenticateToken, async (req, res) => {
   const { username } = req.body;
+  if (!username?.trim()) return res.status(400).json({ error: "Username cannot be empty" });
   try {
-    await pool.query('UPDATE users SET username = $1 WHERE id = $2', [username, req.user.id]);
+    await pool.query('UPDATE users SET username = $1 WHERE id = $2', [username.trim(), req.user.id]);
     res.json({ message: "Username updated" });
   } catch (err) {
+    if (err.code === '23505') return res.status(409).json({ error: "Username is already taken." });
     console.error(err);
     res.status(500).json({ error: "Update failed" });
   }
@@ -93,7 +112,13 @@ router.post('/signup', async (req, res) => {
     const newUser = await pool.query(
       'INSERT INTO users (first_name, surname, username, email, password_hash) VALUES ($1, $2, $3, $4, $5) RETURNING id',
       [first_name, surname, username, email, hashedPassword]
-    );
+    ).catch(err => {
+      if (err.code === '23505') {
+        if (err.constraint === 'users_username_key') throw { status: 409, message: 'Username is already taken.' };
+        if (err.constraint === 'users_email_key') throw { status: 409, message: 'An account with that email already exists.' };
+      }
+      throw err;
+    });
     const user_id = newUser.rows[0].id;
 
     // Generate 6-digit verification code
@@ -109,6 +134,7 @@ router.post('/signup', async (req, res) => {
 
     res.status(201).json({ userId: user_id, message: "Verification code sent to your email." });
   } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
     console.error(err);
     res.status(500).json({ error: "Server Error" });
   }

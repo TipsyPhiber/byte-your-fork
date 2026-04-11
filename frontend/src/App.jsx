@@ -77,7 +77,14 @@ function RecipeGrid({ list, favoritedIds, onOpen, onToggleFavorite }) {
           </div>
           <div className="recipe-card-info">
             <div>{r.title}</div>
-            {r.tag && <div className="recipe-card-tag">{r.tag}</div>}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              {r.tag && <div className="recipe-card-tag">{r.tag}</div>}
+              {parseFloat(r.avg_rating) > 0 && (
+                <div style={{ fontSize: '0.75rem', color: '#f59e0b', fontWeight: 600 }}>
+                  ⭐ {parseFloat(r.avg_rating).toFixed(1)}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       ))}
@@ -91,6 +98,10 @@ function App() {
   const [view, setView] = useState(() => localStorage.getItem('token') ? 'dashboard' : 'landing');
   const [recipes, setRecipes] = useState([]);
   const [activeTag, setActiveTag] = useState('All');
+  const [comments, setComments] = useState([]);
+  const [newComment, setNewComment] = useState('');
+  const [ratingData, setRatingData] = useState({ average: 0, count: 0, userRating: null });
+  const [hoverRating, setHoverRating] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRecipe, setSelectedRecipe] = useState(null);
   const [suggestions, setSuggestions] = useState([]);
@@ -136,6 +147,8 @@ function App() {
         if (isMounted) {
           setUser(profile.data);
           setClearedAt(profile.data.notifications_cleared_at || null);
+          const prefs = profile.data.preferences || [];
+          setActiveTag(prefs.length > 0 ? prefs[0] : 'All');
           fetchRecipes();
           fetchFavorites(token);
           fetchNotifications(token);
@@ -164,10 +177,54 @@ function App() {
 
   const openRecipe = async (id) => {
     setShowSuggestions(false);
+    setComments([]);
+    setNewComment('');
+    setRatingData({ average: 0, count: 0, userRating: null });
     try {
-      const res = await axios.get(`${API_BASE}/recipes/${id}`);
-      setSelectedRecipe(res.data);
+      const [recipeRes, commentsRes] = await Promise.all([
+        axios.get(`${API_BASE}/recipes/${id}`),
+        axios.get(`${API_BASE}/comments/${id}`)
+      ]);
+      setSelectedRecipe(recipeRes.data);
+      setComments(commentsRes.data);
       setEditForm(null);
+      if (token) {
+        const ratingRes = await axios.get(`${API_BASE}/ratings/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+        setRatingData(ratingRes.data);
+      }
+    } catch { /* ignore */ }
+  };
+
+  const handleSubmitComment = async (e) => {
+    e.preventDefault();
+    if (!newComment.trim()) return;
+    try {
+      const res = await axios.post(`${API_BASE}/comments/${selectedRecipe.id}`, { text: newComment }, { headers: { Authorization: `Bearer ${token}` } });
+      setComments(prev => [res.data, ...prev]);
+      setNewComment('');
+    } catch { /* ignore */ }
+  };
+
+  const handleDeleteComment = async (commentId) => {
+    try {
+      await axios.delete(`${API_BASE}/comments/${commentId}`, { headers: { Authorization: `Bearer ${token}` } });
+      setComments(prev => prev.filter(c => c.id !== commentId));
+    } catch { /* ignore */ }
+  };
+
+  const handleRate = async (rating) => {
+    try {
+      const res = await axios.post(`${API_BASE}/ratings/${selectedRecipe.id}`, { rating }, { headers: { Authorization: `Bearer ${token}` } });
+      setRatingData(res.data);
+      // Update the card in the recipe list without a full refetch
+      setRecipes(prev => prev.map(r => r.id === selectedRecipe.id
+        ? { ...r, avg_rating: res.data.average, rating_count: res.data.count }
+        : r
+      ));
+      setFavoriteRecipes(prev => prev.map(r => r.id === selectedRecipe.id
+        ? { ...r, avg_rating: res.data.average, rating_count: res.data.count }
+        : r
+      ));
     } catch { /* ignore */ }
   };
 
@@ -210,7 +267,13 @@ function App() {
     } catch { alert('Save failed.'); }
   };
 
-  const handleLogout = () => { localStorage.removeItem('token'); setToken(null); setView('landing'); };
+  const handleLogout = () => { localStorage.removeItem('token'); setToken(null); setUser(null); setActiveTag('All'); setView('landing'); };
+
+  const goToDashboard = () => {
+    const prefs = user?.preferences || [];
+    setActiveTag(prefs.length > 0 ? prefs[0] : 'All');
+    setView('dashboard');
+  };
 
   const isAdmin = user?.role === 'admin' || user?.id === 1;
 
@@ -264,9 +327,9 @@ function App() {
   return (
     <div className="app-container">
       <aside className="sidebar">
-        <img src={logoImg} className="sidebar-logo" onClick={() => setView('dashboard')} alt="Logo" />
+        <img src={logoImg} className="sidebar-logo" onClick={goToDashboard} alt="Logo" />
         <nav className="sidebar-nav">
-          <button className={`nav-icon-button ${view === 'dashboard' ? 'active' : ''}`} onClick={() => setView('dashboard')} title="Home">🏠</button>
+          <button className={`nav-icon-button ${view === 'dashboard' ? 'active' : ''}`} onClick={goToDashboard} title="Home">🏠</button>
           <button className={`nav-icon-button ${view === 'explore' ? 'active' : ''}`} onClick={() => setView('explore')} title="Explore">🔍</button>
           <button className={`nav-icon-button ${view === 'favorites' ? 'active' : ''}`} onClick={() => setView('favorites')} title="Favorites">❤️</button>
           <button className={`nav-icon-button ${view === 'notifications' ? 'active' : ''}`} onClick={() => setView('notifications')} title="Notifications" style={{ position: 'relative' }}>
@@ -310,8 +373,8 @@ function App() {
         </header>
 
         <div className="content-area">
-          {view === 'settings' && <Settings user={user} setUser={setUser} token={token} />}
-          {view === 'add-recipe' && <AddRecipe token={token} onRecipeAdded={() => { setView('dashboard'); fetchRecipes(); }} />}
+          {view === 'settings' && <Settings user={user} setUser={setUser} token={token} onPreferencesChange={() => {}} />}
+          {view === 'add-recipe' && <AddRecipe token={token} onRecipeAdded={() => { goToDashboard(); fetchRecipes(); }} />}
 
           {(view === 'dashboard' || view === 'explore') && (
             <div>
@@ -475,6 +538,63 @@ function App() {
                       <ol style={{ paddingLeft: '20px', lineHeight: '1.8' }}>
                         {selectedRecipe.steps?.map((s, i) => <li key={i} style={{ marginBottom: '15px' }}>{s}</li>)}
                       </ol>
+                    </div>
+                  </div>
+
+                  {/* Rating */}
+                  <div style={{ marginTop: '32px' }}>
+                    <h3 className="recipe-section-title">
+                      Rate This Recipe
+                      {ratingData.count > 0 && <span style={{ fontWeight: 400, fontSize: '0.9rem', color: 'var(--text-light)', marginLeft: '12px' }}>
+                        {ratingData.average} / 5 ({ratingData.count} {ratingData.count === 1 ? 'rating' : 'ratings'})
+                      </span>}
+                    </h3>
+                    <div style={{ display: 'flex', gap: '6px', marginBottom: '8px' }}>
+                      {[1, 2, 3, 4, 5].map(star => (
+                        <button
+                          key={star}
+                          onClick={() => handleRate(star)}
+                          onMouseEnter={() => setHoverRating(star)}
+                          onMouseLeave={() => setHoverRating(0)}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.8rem', padding: '2px', transition: 'transform 0.1s' }}
+                        >
+                          {star <= (hoverRating || ratingData.userRating || 0) ? '⭐' : '☆'}
+                        </button>
+                      ))}
+                    </div>
+                    {ratingData.userRating && <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-light)' }}>Your rating: {ratingData.userRating} / 5</p>}
+                  </div>
+
+                  {/* Comments */}
+                  <div style={{ marginTop: '32px' }}>
+                    <h3 className="recipe-section-title">Comments ({comments.length})</h3>
+                    <form onSubmit={handleSubmitComment} style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+                      <input
+                        className="edit-input"
+                        style={{ flex: 1 }}
+                        placeholder="Leave a comment..."
+                        value={newComment}
+                        onChange={e => setNewComment(e.target.value)}
+                        maxLength={255}
+                      />
+                      <button type="submit" className="primary-button" style={{ padding: '10px 20px', whiteSpace: 'nowrap' }}>Post</button>
+                    </form>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      {comments.length === 0 && <p style={{ color: 'var(--text-light)', margin: 0 }}>No comments yet — be the first!</p>}
+                      {comments.map(c => (
+                        <div key={c.id} style={{ background: '#f9fafb', borderRadius: '10px', padding: '12px 16px', border: '1px solid #eee' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                            <div>
+                              <span style={{ fontWeight: 700, color: 'var(--dark-blue)', fontSize: '0.9rem' }}>{c.username || c.first_name}</span>
+                              <span style={{ color: 'var(--text-light)', fontSize: '0.8rem', marginLeft: '10px' }}>{new Date(c.created_at).toLocaleDateString()}</span>
+                            </div>
+                            {(user?.id === c.user_id || isAdmin) && (
+                              <button onClick={() => handleDeleteComment(c.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', fontSize: '0.8rem' }}>✕</button>
+                            )}
+                          </div>
+                          <p style={{ margin: '6px 0 0', color: '#374151', fontSize: '0.95rem' }}>{c.text}</p>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 </div>
