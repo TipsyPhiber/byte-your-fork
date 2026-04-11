@@ -21,6 +21,16 @@ export default function CookMode({ recipe, token, onExit }) {
 
   const wsRef = useRef(null);
   const recognizerRef = useRef(null);
+  const mountedRef = useRef(true);
+
+  // Stop speech immediately on unmount, no matter how the component exits
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      window.speechSynthesis.cancel();
+    };
+  }, []);
 
   // Elapsed cook timer
   useEffect(() => {
@@ -38,6 +48,7 @@ export default function CookMode({ recipe, token, onExit }) {
   const stepCount = steps.length;
 
   const speak = useCallback((text) => {
+    if (!mountedRef.current) return;
     window.speechSynthesis.cancel();
     const utt = new SpeechSynthesisUtterance(text);
     utt.rate = 0.88;

@@ -550,8 +550,8 @@ function App() {
               <>
                 <img className="modal-hero" src={selectedRecipe.image_url || FALLBACK_IMG} onError={e => e.target.src = FALLBACK_IMG} alt="" />
                 <div className="modal-scroll">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
-                    <h1 style={{ fontSize: '2.5rem', color: 'var(--dark-blue)', margin: 0 }}>{selectedRecipe.title}</h1>
+                  <div className="modal-title-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
+                    <h1 className="modal-recipe-title" style={{ fontSize: '2.5rem', color: 'var(--dark-blue)', margin: 0 }}>{selectedRecipe.title}</h1>
                     <div style={{ display: 'flex', gap: '8px', flexShrink: 0, marginLeft: '16px', paddingTop: '8px', alignItems: 'center' }}>
                       <button
                         className={`heart-btn ${favoritedIds.has(selectedRecipe.id) ? 'favorited' : ''}`}
@@ -578,7 +578,7 @@ function App() {
                     {selectedRecipe.tag && <span>🍽️ {selectedRecipe.tag}</span>}
                     {selectedRecipe.view_count > 0 && <span>👁️ {selectedRecipe.view_count} {parseInt(selectedRecipe.view_count) === 1 ? 'view' : 'views'}</span>}
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '40px' }}>
+                  <div className="recipe-detail-cols" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '40px' }}>
                     <div>
                       <h3 className="recipe-section-title">Ingredients</h3>
                       <ul style={{ paddingLeft: '20px', lineHeight: '2' }}>

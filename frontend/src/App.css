@@ -365,6 +365,26 @@ body { margin: 0; font-family: 'Inter', sans-serif; background: #fff; }
 
   .cook-mode-step-card { padding: 24px 20px; }
   .cook-mode-step-text { font-size: 1.2rem; }
+
+  .recipe-detail-cols {
+    grid-template-columns: 1fr !important;
+    gap: 24px !important;
+  }
+
+  .modal-title-row {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .modal-recipe-title {
+    font-size: 1.6rem !important;
+  }
+
+  .modal-title-row > div {
+    margin-left: 0 !important;
+    padding-top: 0 !important;
+    flex-wrap: wrap;
+  }
 }
 
 /* ── Cook Mode ── */
