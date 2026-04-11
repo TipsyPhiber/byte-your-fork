@@ -1,5 +1,5 @@
 /* eslint-disable react-hooks/set-state-in-effect */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import './App.css';
 import Auth from './Auth';
@@ -299,6 +299,15 @@ function App() {
   const allTags = ['All', ...Array.from(new Set(recipes.map(r => r.tag).filter(Boolean))).sort()];
   const filteredRecipes = activeTag === 'All' ? recipes : recipes.filter(r => r.tag === activeTag);
 
+  const featuredRecipes = useMemo(() => {
+    const prefs = user?.preferences || [];
+    let pool = prefs.length > 0 ? recipes.filter(r => prefs.includes(r.tag)) : recipes;
+    if (pool.length === 0) pool = recipes;
+    return [...pool]
+      .sort((a, b) => (parseFloat(b.avg_rating) || 0) - (parseFloat(a.avg_rating) || 0))
+      .slice(0, 24);
+  }, [recipes, user?.preferences]);
+
   const closeModal = () => { setSelectedRecipe(null); setEditForm(null); setCookMode(false); };
 
   if (!token) {
@@ -376,10 +385,26 @@ function App() {
           {view === 'settings' && <Settings user={user} setUser={setUser} token={token} onPreferencesChange={() => {}} />}
           {view === 'add-recipe' && <AddRecipe token={token} onRecipeAdded={() => { goToDashboard(); fetchRecipes(); }} />}
 
-          {(view === 'dashboard' || view === 'explore') && (
+          {view === 'dashboard' && (
             <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                <h2 style={{ margin: 0, color: 'var(--dark-blue)' }}>{view === 'dashboard' ? 'Featured Recipes' : 'Explore All'}</h2>
+              <div style={{ marginBottom: '24px' }}>
+                <h2 style={{ margin: 0, color: 'var(--dark-blue)' }}>
+                  {user?.preferences?.length > 0 ? 'Recommended For You' : 'Top Rated Recipes'}
+                </h2>
+                <p style={{ margin: '6px 0 0', color: 'var(--text-light)', fontSize: '0.9rem' }}>
+                  {user?.preferences?.length > 0
+                    ? `Based on your ${user.preferences.join(', ')} preferences, sorted by rating`
+                    : 'The highest rated recipes across all cuisines'}
+                </p>
+              </div>
+              <RecipeGrid list={featuredRecipes} favoritedIds={favoritedIds} onOpen={openRecipe} onToggleFavorite={toggleFavorite} />
+            </div>
+          )}
+
+          {view === 'explore' && (
+            <div>
+              <div style={{ marginBottom: '20px' }}>
+                <h2 style={{ margin: 0, color: 'var(--dark-blue)' }}>Explore All Recipes</h2>
               </div>
               <div className="tag-filter">
                 {allTags.map(tag => (
