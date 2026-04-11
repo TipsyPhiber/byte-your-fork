@@ -5,7 +5,12 @@ const { authenticateToken } = require('../middleware/auth');
 
 router.get('/', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM recipes ORDER BY creation_date DESC');
+    const result = await pool.query(`
+      SELECT r.*, i.url as image_url 
+      FROM recipes r 
+      LEFT JOIN images i ON r.id = i.recipe_id 
+      ORDER BY r.creation_date DESC
+    `);
     res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: "Fetch Failed" });
@@ -13,8 +18,14 @@ router.get('/', async (req, res) => {
 });
 
 router.post('/', authenticateToken, async (req, res) => {
-  const { title, ttc, ingredients, steps } = req.body;
+  const { title, ttc, ingredients, steps, imageUrl } = req.body;
   const userId = req.user.id;
+
+  const adminResult = await pool.query('SELECT 1 FROM admins WHERE user_id = $1', [userId]);
+  if (adminResult.rows.length === 0) {
+    return res.status(403).json({ error: "Access denied: Only admins can add recipes" });
+  }
+
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -23,6 +34,13 @@ router.post('/', authenticateToken, async (req, res) => {
       [title, ttc, userId]
     );
     const recipeId = recipeResult.rows[0].id;
+
+    if (imageUrl) {
+      await client.query(
+        'INSERT INTO images (recipe_id, url) VALUES ($1, $2)',
+        [recipeId, imageUrl]
+      );
+    }
 
     if (ingredients) {
       for (const item of ingredients) {
@@ -59,7 +77,12 @@ router.post('/', authenticateToken, async (req, res) => {
 router.get('/:id', async (req, res) => {
   const { id } = req.params;
   try {
-    const recipeResult = await pool.query('SELECT * FROM recipes WHERE id = $1', [id]);
+    const recipeResult = await pool.query(`
+      SELECT r.*, i.url as image_url 
+      FROM recipes r 
+      LEFT JOIN images i ON r.id = i.recipe_id 
+      WHERE r.id = $1
+    `, [id]);
     if (recipeResult.rows.length === 0) return res.status(404).json({ error: "Recipe Not Found" });
 
     const recipe = recipeResult.rows[0];

@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import './App.css';
@@ -5,204 +6,176 @@ import Auth from './Auth';
 import LandingPage from './LandingPage';
 import About from './About';
 import Settings from './Settings';
+import AddRecipe from './AddRecipe';
+import logoImg from '../Images/souschef_logo.png';
+
+const API_BASE = 'http://localhost:5000/api';
+const FALLBACK_IMG = 'https://images.unsplash.com/photo-1495195129352-aec325a55b65?auto=format&fit=crop&w=600&q=80';
 
 function App() {
   const [token, setToken] = useState(localStorage.getItem('token'));
   const [user, setUser] = useState(null);
-  const [view, setView] = useState(() => {
-    const savedToken = localStorage.getItem('token');
-    return savedToken ? 'dashboard' : 'landing';
-  });
+  const [view, setView] = useState(() => localStorage.getItem('token') ? 'dashboard' : 'landing');
   const [recipes, setRecipes] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRecipe, setSelectedRecipe] = useState(null);
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
-  const handleLogout = useCallback(() => {
-    localStorage.removeItem('token');
-    setToken(null);
-    setUser(null);
-    setView('landing');
+  const fetchRecipes = useCallback(async () => {
+    try {
+      const res = await axios.get(`${API_BASE}/recipes`);
+      setRecipes(res.data);
+    } catch (err) { console.error('Fetch error', err); }
   }, []);
 
   useEffect(() => {
     if (!token) return;
-
     let isMounted = true;
-
-    async function fetchData() {
+    async function init() {
       try {
-        const [profileRes, recipesRes] = await Promise.all([
-          axios.get('http://localhost:5000/api/auth/me', {
-            headers: { Authorization: `Bearer ${token}` }
-          }),
-          axios.get('http://localhost:5000/api/recipes')
-        ]);
-
+        const profile = await axios.get(`${API_BASE}/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
         if (isMounted) {
-          setUser(profileRes.data);
-          setRecipes(recipesRes.data);
+          setUser(profile.data);
+          fetchRecipes();
         }
-      } catch (err) {
-        console.error('Failed to fetch data:', err);
-        if (isMounted && (err.response?.status === 401 || err.response?.status === 403)) {
-          handleLogout();
-        }
-      }
+      } catch (err) { if (err.response?.status === 401) { localStorage.removeItem('token'); setToken(null); } }
     }
+    init();
+    return () => { isMounted = false; };
+  }, [token, fetchRecipes]);
 
-    fetchData();
+  useEffect(() => {
+    if (searchQuery.trim().length >= 2) {
+      const timer = setTimeout(async () => {
+        try {
+          const res = await axios.get(`${API_BASE}/search?query=${encodeURIComponent(searchQuery.trim())}`);
+          setSuggestions(res.data);
+          setShowSuggestions(true);
+        } catch (e) { console.error('Suggest error', e); }
+      }, 300);
+      return () => clearTimeout(timer);
+    } else {
+      setSuggestions([]);
+      setShowSuggestions(false);
+    }
+  }, [searchQuery]);
 
-    return () => {
-      isMounted = false;
-    };
-  }, [token, handleLogout]);
-
-  const fetchRecipeDetails = async (id) => {
+  const openRecipe = async (id) => {
+    setShowSuggestions(false);
     try {
-      const res = await axios.get(`http://localhost:5000/api/recipes/${id}`);
+      const res = await axios.get(`${API_BASE}/recipes/${id}`);
       setSelectedRecipe(res.data);
-    } catch (err) {
-      console.error('Failed to fetch recipe details:', err);
-    }
+    } catch (e) { console.error('Open error', e); }
   };
 
-  const handleSearch = async (e) => {
-    e.preventDefault();
-    try {
-      const res = await axios.get(`http://localhost:5000/api/search?query=${searchQuery}`);
-      setRecipes(res.data);
-      setSelectedRecipe(null);
-    } catch (err) {
-      console.error('Search failed:', err);
-    }
-  };
+  const handleLogout = () => { localStorage.removeItem('token'); setToken(null); setView('landing'); };
 
-  const handleAuthSuccess = (t, userData) => {
-    localStorage.setItem('token', t);
-    setToken(t);
-    if (userData) setUser(userData);
-    setView('dashboard');
-  };
-
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role === 'admin' || user?.id === 1;
 
   if (!token) {
-    if (view === 'login') {
-      return <Auth setToken={handleAuthSuccess} initialTab="login" onHome={() => setView('landing')} onAbout={() => setView('about')} />;
-    }
-    if (view === 'signup') {
-      return <Auth setToken={handleAuthSuccess} initialTab="signup" onHome={() => setView('landing')} onAbout={() => setView('about')} />;
-    }
-    if (view === 'about') {
-      return <About onHome={() => setView('landing')} />;
-    }
-    return (
-      <LandingPage 
-        onLogin={() => setView('login')} 
-        onSignUp={() => setView('signup')} 
-        onHome={() => setView('landing')}
-        onAbout={() => setView('about')}
-      />
-    );
+    const commonProps = { setToken: (t, u) => { setToken(t); setUser(u); setView('dashboard'); localStorage.setItem('token', t); }, onHome: () => setView('landing'), onAbout: () => setView('about') };
+    if (view === 'login') return <Auth {...commonProps} initialTab="login" />;
+    if (view === 'signup') return <Auth {...commonProps} initialTab="signup" />;
+    if (view === 'about') return <About onHome={() => setView('landing')} />;
+    return <LandingPage onLogin={() => setView('login')} onSignUp={() => setView('signup')} onHome={() => setView('landing')} onAbout={() => setView('about')} />;
   }
-
-  const renderContent = () => {
-    if (selectedRecipe) {
-      return (
-        <section className="recipe-details">
-          <button className="primary-button" style={{ marginBottom: '20px' }} onClick={() => setSelectedRecipe(null)}>
-            ← Back to Recipes
-          </button>
-          <h2 style={{ color: 'var(--dark-blue)', marginTop: '0' }}>{selectedRecipe.title}</h2>
-          <p><strong>Time to cook:</strong> {selectedRecipe.ttc} mins</p>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px', marginTop: '30px' }}>
-            <div style={{ backgroundColor: 'white', padding: '25px', borderRadius: '15px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)' }}>
-              <h3 style={{ color: 'var(--primary-blue)', marginTop: 0 }}>Ingredients</h3>
-              <ul style={{ paddingLeft: '20px', lineHeight: '1.8' }}>
-                {selectedRecipe.ingredients?.map((ing, idx) => (
-                  <li key={idx}>{ing.amount} {ing.name}</li>
-                ))}
-              </ul>
-            </div>
-            <div style={{ backgroundColor: 'white', padding: '25px', borderRadius: '15px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)' }}>
-              <h3 style={{ color: 'var(--primary-blue)', marginTop: 0 }}>Steps</h3>
-              <ol style={{ paddingLeft: '20px', lineHeight: '1.8' }}>
-                {selectedRecipe.steps?.map((step, idx) => (
-                  <li key={idx} style={{ marginBottom: '12px' }}>{step}</li>
-                ))}
-              </ol>
-            </div>
-          </div>
-        </section>
-      );
-    }
-
-    switch (view) {
-      case 'explore':
-        return <div style={{ textAlign: 'center', padding: '50px' }}><h2>Explore</h2><p>Coming soon: Discover trending and recommended recipes!</p></div>;
-      case 'notifications':
-        return <div style={{ textAlign: 'center', padding: '50px' }}><h2>Notifications</h2><p>You're all caught up!</p></div>;
-      case 'settings':
-        return <Settings user={user} setUser={setUser} token={token} />;
-      default:
-        return (
-          <section className="recipe-grid">
-            {recipes.length > 0 ? (
-              recipes.map((recipe) => (
-                <div key={recipe.id} className="recipe-card">
-                  <h3>{recipe.title}</h3>
-                  <p style={{ color: 'var(--text-light)', marginBottom: '20px' }}>Time: {recipe.ttc} mins</p>
-                  <button className="primary-button" onClick={() => fetchRecipeDetails(recipe.id)}>View Details</button>
-                </div>
-              ))
-            ) : (
-              <p style={{ textAlign: 'center', color: 'var(--text-light)', marginTop: '50px' }}>No recipes found. Try searching for something else!</p>
-            )}
-          </section>
-        );
-    }
-  };
 
   return (
     <div className="app-container">
       <aside className="sidebar">
-        <div className="sidebar-header">
-          <h1 style={{ cursor: 'pointer' }} onClick={() => { setView('dashboard'); setSelectedRecipe(null); }}>BYTE YOUR FORK</h1>
-        </div>
+        <img src={logoImg} className="sidebar-logo" onClick={() => setView('dashboard')} alt="Logo" />
         <nav className="sidebar-nav">
-          <button className={`nav-button ${view === 'dashboard' && !selectedRecipe ? 'active' : ''}`} onClick={() => { setView('dashboard'); setSelectedRecipe(null); }}>Home</button>
-          <button className={`nav-button ${view === 'explore' ? 'active' : ''}`} onClick={() => { setView('explore'); setSelectedRecipe(null); }}>Explore</button>
-          <button className={`nav-button ${view === 'notifications' ? 'active' : ''}`} onClick={() => { setView('notifications'); setSelectedRecipe(null); }}>Notifications</button>
-          <button className="nav-button">My Recipes</button>
-          {isAdmin && <button className="nav-button">Add Recipe</button>}
-          <button className="nav-button logout-button" onClick={handleLogout}>Logout</button>
+          <button className={`nav-icon-button ${view === 'dashboard' ? 'active' : ''}`} onClick={() => setView('dashboard')} title="Home">🏠</button>
+          <button className={`nav-icon-button ${view === 'explore' ? 'active' : ''}`} onClick={() => setView('explore')} title="Explore">🔍</button>
+          <button className={`nav-icon-button ${view === 'notifications' ? 'active' : ''}`} onClick={() => setView('notifications')} title="Notifications">🔔</button>
+          {isAdmin && <button className={`nav-icon-button ${view === 'add-recipe' ? 'active' : ''}`} onClick={() => setView('add-recipe')} title="Add Recipe">➕</button>}
+          <button className={`nav-icon-button ${view === 'settings' ? 'active' : ''}`} style={{ marginTop: 'auto' }} onClick={() => setView('settings')} title="Settings">⚙️</button>
+          <button className="nav-icon-button" onClick={handleLogout} title="Logout">🚪</button>
         </nav>
       </aside>
 
       <main className="main-content">
         <header className="header-bar">
-          <div className="search-container">
-            {view === 'dashboard' && !selectedRecipe && (
-              <form onSubmit={handleSearch}>
-                <input 
-                  type="text" 
-                  className="search-bar" 
-                  placeholder="Search recipes..." 
+          <div style={{ flex: 1 }}>
+            {view === 'explore' && (
+              <div className="search-container">
+                <input
+                  type="text"
+                  className="search-bar"
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  onFocus={() => { if (searchQuery.trim().length >= 2 && suggestions.length > 0) setShowSuggestions(true); }}
+                  onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                  placeholder="Search recipes..."
                 />
-              </form>
+                {showSuggestions && suggestions.length > 0 && (
+                  <div className="search-suggestions">
+                    {suggestions.map(s => (
+                      <div key={s.id} className="suggestion-item" onClick={() => openRecipe(s.id)}>
+                        <img src={s.image_url || FALLBACK_IMG} onError={e => e.target.src = FALLBACK_IMG} alt="" />
+                        <span>{s.title}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
           </div>
-          <div className="header-actions">
-            <button className="primary-button" onClick={() => setView('settings')}>Account</button>
-          </div>
+          <div onClick={() => setView('settings')} style={{ cursor: 'pointer', fontWeight: 600 }}>Account V</div>
         </header>
 
         <div className="content-area">
-          {renderContent()}
+          {view === 'settings' && <Settings user={user} setUser={setUser} token={token} />}
+          {view === 'add-recipe' && <AddRecipe token={token} onRecipeAdded={() => { setView('dashboard'); fetchRecipes(); }} />}
+          {(view === 'dashboard' || view === 'explore') && (
+            <div>
+              <h2 style={{ marginBottom: '30px', color: 'var(--dark-blue)' }}>{view === 'dashboard' ? 'Featured Recipes' : 'Explore All'}</h2>
+              <div className="recipe-grid">
+                {recipes.map(r => (
+                  <div key={r.id} className="recipe-card" onClick={() => openRecipe(r.id)}>
+                    <img className="recipe-card-img" src={r.image_url || FALLBACK_IMG} onError={e => e.target.src = FALLBACK_IMG} alt={r.title} />
+                    <div className="recipe-card-info">{r.title}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {view === 'notifications' && <div style={{ textAlign: 'center', padding: '50px' }}><h2>Notifications</h2><p>No new notifications.</p></div>}
         </div>
       </main>
+
+      {selectedRecipe && (
+        <div className="modal-overlay" onClick={() => setSelectedRecipe(null)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <button className="modal-close-btn" onClick={() => setSelectedRecipe(null)}>✕</button>
+            <img className="modal-hero" src={selectedRecipe.image_url || FALLBACK_IMG} onError={e => e.target.src = FALLBACK_IMG} alt="" />
+            <div className="modal-scroll">
+              <h1 style={{ fontSize: '2.5rem', color: 'var(--dark-blue)', margin: '0 0 10px 0' }}>{selectedRecipe.title}</h1>
+              <div className="recipe-meta">
+                <span>⏱️ {selectedRecipe.ttc} mins</span>
+                <span>👨‍🍳 Admin</span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '40px' }}>
+                <div>
+                  <h3 className="recipe-section-title">Ingredients</h3>
+                  <ul style={{ paddingLeft: '20px', lineHeight: '2' }}>
+                    {selectedRecipe.ingredients?.map((ing, i) => (
+                      <li key={i}><strong>{ing.amount}</strong> {ing.name}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <h3 className="recipe-section-title">Instructions</h3>
+                  <ol style={{ paddingLeft: '20px', lineHeight: '1.8' }}>
+                    {selectedRecipe.steps?.map((s, i) => <li key={i} style={{ marginBottom: '15px' }}>{s}</li>)}
+                  </ol>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
