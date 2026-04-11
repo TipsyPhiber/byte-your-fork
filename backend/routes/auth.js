@@ -79,6 +79,7 @@ router.put('/clear-notifications', authenticateToken, async (req, res) => {
 router.put('/update-username', authenticateToken, async (req, res) => {
   const { username } = req.body;
   if (!username?.trim()) return res.status(400).json({ error: "Username cannot be empty" });
+  if (username.trim().length > 15) return res.status(400).json({ error: "Username must not exceed 15 characters." });
   try {
     await pool.query('UPDATE users SET username = $1 WHERE id = $2', [username.trim(), req.user.id]);
     res.json({ message: "Username updated" });
@@ -126,6 +127,7 @@ router.put('/update-password', authenticateToken, async (req, res) => {
 router.post('/signup', async (req, res) => {
   const { first_name, surname, username, email, password } = req.body;
   if (password && password.length > 15) return res.status(400).json({ error: 'Password must not exceed 15 characters.' });
+  if (username && username.length > 15) return res.status(400).json({ error: 'Username must not exceed 15 characters.' });
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
     const encEmail = encrypt(email.trim().toLowerCase());

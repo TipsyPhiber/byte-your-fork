@@ -176,9 +176,10 @@ const Settings = ({ user, setUser, token, onPreferencesChange }) => {
             type="text" 
             className="search-bar" 
             style={{ paddingLeft: '15px' }}
-            placeholder="New Username" 
-            value={username} 
-            onChange={(e) => setUsername(e.target.value)} 
+            placeholder="New Username (max 15 characters)"
+            maxLength={15}
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
           />
           <button type="submit" className="primary-button">Save Username</button>
         </form>
