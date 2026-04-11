@@ -5,6 +5,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const multer = require('multer');
 const pool = require('../db');
+const { encrypt, decrypt, hmac } = require('../crypto_helper');
 const { sendVerificationEmail, sendPasswordResetEmail } = require('../mailer');
 
 const { authenticateToken } = require('../middleware/auth');
@@ -33,10 +34,11 @@ router.get('/me', authenticateToken, async (req, res) => {
     ]);
     user.role = adminResult.rows.length > 0 ? 'admin' : 'user';
     user.notifications_cleared_at = notifResult.rows[0]?.cleared_at || null;
-    user.preferences = prefResult.rows.map(r => r.tag_name);
+    user.preferences = prefResult.rows.map(r => decrypt(r.tag_name));
     user.avatar_url = profileResult.rows[0]?.avatar_data
       ? `http://localhost:5000/api/auth/avatar/${user.id}`
       : null;
+    user.email = decrypt(user.email);
 
     res.json(user);
   } catch (err) {
@@ -51,9 +53,9 @@ router.put('/preferences', authenticateToken, async (req, res) => {
   try {
     await pool.query('DELETE FROM user_preferences WHERE user_id = $1', [req.user.id]);
     for (const tag of preferences) {
-      await pool.query('INSERT INTO user_preferences (user_id, tag_name) VALUES ($1, $2) ON CONFLICT DO NOTHING', [req.user.id, tag]);
+      await pool.query('INSERT INTO user_preferences (user_id, tag_name) VALUES ($1, $2) ON CONFLICT DO NOTHING', [req.user.id, encrypt(tag)]);
     }
-    res.json({ preferences });
+    res.json({ preferences }); // return plaintext to frontend
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Server Error" });
@@ -124,9 +126,11 @@ router.post('/signup', async (req, res) => {
   const { first_name, surname, username, email, password } = req.body;
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
+    const encEmail = encrypt(email.trim().toLowerCase());
+    const emailHmac = hmac(email);
     const newUser = await pool.query(
       'INSERT INTO users (first_name, surname, username, email, password_hash) VALUES ($1, $2, $3, $4, $5) RETURNING id',
-      [first_name, surname, username, email, hashedPassword]
+      [first_name, surname, username, encEmail, hashedPassword]
     ).catch(err => {
       if (err.code === '23505') {
         if (err.constraint === 'users_username_key') throw { status: 409, message: 'Username is already taken.' };
@@ -136,9 +140,15 @@ router.post('/signup', async (req, res) => {
     });
     const user_id = newUser.rows[0].id;
 
+    // Store HMAC for email lookup
+    await pool.query(
+      'INSERT INTO email_hashes (user_id, email_hmac) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET email_hmac = $2',
+      [user_id, emailHmac]
+    );
+
     // Generate 6-digit verification code
     const code = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
 
     await pool.query(
       'INSERT INTO email_verification_codes (user_id, code, expires_at) VALUES ($1, $2, $3)',
@@ -214,9 +224,13 @@ router.post('/forgot-password', async (req, res) => {
   if (!email) return res.status(400).json({ error: "Email is required" });
 
   try {
-    const userResult = await pool.query('SELECT id, first_name FROM users WHERE email = $1', [email]);
-
+    // Use HMAC lookup since email is encrypted at rest
+    const hashResult = await pool.query('SELECT user_id FROM email_hashes WHERE email_hmac = $1', [hmac(email)]);
     // Always respond success to prevent email enumeration
+    if (hashResult.rows.length === 0) {
+      return res.json({ message: "If that email exists, a reset link has been sent." });
+    }
+    const userResult = await pool.query('SELECT id, first_name FROM users WHERE id = $1', [hashResult.rows[0].user_id]);
     if (userResult.rows.length === 0) {
       return res.json({ message: "If that email exists, a reset link has been sent." });
     }
@@ -277,10 +291,17 @@ router.post('/login', async (req, res) => {
   try {
     const identifier = email?.trim();
     const isEmail = identifier?.includes('@');
-    const user = await pool.query(
-      isEmail ? 'SELECT * FROM users WHERE email = $1' : 'SELECT * FROM users WHERE username = $1',
-      [identifier]
-    );
+    let user;
+    if (isEmail) {
+      // Look up via HMAC since email is encrypted at rest
+      const hashResult = await pool.query(
+        'SELECT user_id FROM email_hashes WHERE email_hmac = $1', [hmac(identifier)]
+      );
+      if (hashResult.rows.length === 0) return res.status(401).json({ error: 'Credentials bad' });
+      user = await pool.query('SELECT * FROM users WHERE id = $1', [hashResult.rows[0].user_id]);
+    } else {
+      user = await pool.query('SELECT * FROM users WHERE username = $1', [identifier]);
+    }
     if (user.rows.length === 0) return res.status(401).json({ error: "Credentials bad" });
 
     const validPassword = await bcrypt.compare(password, user.rows[0].password_hash);
@@ -307,7 +328,12 @@ router.put('/update-email', authenticateToken, async (req, res) => {
     if (userResult.rows.length === 0) return res.status(404).json({ error: 'User not found.' });
     const valid = await bcrypt.compare(password, userResult.rows[0].password_hash);
     if (!valid) return res.status(401).json({ error: 'Incorrect password.' });
-    await pool.query('UPDATE users SET email = $1 WHERE id = $2', [newEmail.trim().toLowerCase(), req.user.id]);
+    const cleanEmail = newEmail.trim().toLowerCase();
+    await pool.query('UPDATE users SET email = $1 WHERE id = $2', [encrypt(cleanEmail), req.user.id]);
+    await pool.query(
+      'INSERT INTO email_hashes (user_id, email_hmac) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET email_hmac = $2',
+      [req.user.id, hmac(cleanEmail)]
+    );
     res.json({ message: 'Email updated successfully.' });
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ error: 'That email is already in use.' });
