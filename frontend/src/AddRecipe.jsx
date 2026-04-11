@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import { API_BASE } from './config';
 
 const AddRecipe = ({ token, onRecipeAdded }) => {
   const [title, setTitle] = useState('');
@@ -44,7 +45,7 @@ const AddRecipe = ({ token, onRecipeAdded }) => {
     setError('');
 
     try {
-      await axios.post('http://localhost:5000/api/recipes', 
+      await axios.post(`${API_BASE}/api/recipes`,
         { title, ttc: parseInt(ttc), imageUrl, ingredients, steps },
         { headers: { Authorization: `Bearer ${token}` } }
       );

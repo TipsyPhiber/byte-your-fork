@@ -1,6 +1,7 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import axios from 'axios';
+import { API_BASE as BASE_URL } from './config';
 import './App.css';
 import Auth from './Auth';
 import LandingPage from './LandingPage';
@@ -24,7 +25,7 @@ function ResetPasswordForm({ token, onDone }) {
     setLoading(true);
     setError('');
     try {
-      const res = await axios.post('http://localhost:5000/api/auth/reset-password', { token, newPassword });
+      const res = await axios.post(`${BASE_URL}/api/auth/reset-password`, { token, newPassword });
       setStatus(res.data.message);
     } catch (err) {
       setError(err.response?.data?.error || 'Something went wrong. The link may have expired.');
@@ -61,7 +62,7 @@ function ResetPasswordForm({ token, onDone }) {
   );
 }
 
-const API_BASE = 'http://localhost:5000/api';
+const API_BASE = `${BASE_URL}/api`;
 const FALLBACK_IMG = 'https://images.unsplash.com/photo-1495195129352-aec325a55b65?auto=format&fit=crop&w=600&q=80';
 
 function RecipeGrid({ list, favoritedIds, onOpen, onToggleFavorite }) {

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { API_BASE } from './config';
 
 const ALL_CUISINES = ['Italian', 'Asian', 'Mediterranean', 'Indian', 'Southwest', 'Mexican', 'American', 'Thai', 'Middle Eastern', 'Cajun'];
 
@@ -32,7 +33,7 @@ const Settings = ({ user, setUser, token, onPreferencesChange }) => {
 
   const handleSavePreferences = async () => {
     try {
-      await axios.put('http://localhost:5000/api/auth/preferences', { preferences }, { headers: { Authorization: `Bearer ${token}` } });
+      await axios.put(`${API_BASE}/api/auth/preferences`, { preferences }, { headers: { Authorization: `Bearer ${token}` } });
       setUser({ ...user, preferences });
       if (onPreferencesChange) onPreferencesChange(preferences);
       setPrefMessage('Preferences saved!');
@@ -63,7 +64,7 @@ const Settings = ({ user, setUser, token, onPreferencesChange }) => {
     const formData = new FormData();
     formData.append('avatar', file);
     try {
-      const res = await axios.post('http://localhost:5000/api/auth/avatar', formData, {
+      const res = await axios.post(`${API_BASE}/api/auth/avatar`, formData, {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
       });
       setUser({ ...user, avatar_url: res.data.avatar_url });
@@ -78,7 +79,7 @@ const Settings = ({ user, setUser, token, onPreferencesChange }) => {
     e.preventDefault();
     setEmailMessage(''); setEmailError('');
     try {
-      await axios.put('http://localhost:5000/api/auth/update-email', { newEmail, password: emailPassword }, { headers: { Authorization: `Bearer ${token}` } });
+      await axios.put(`${API_BASE}/api/auth/update-email`, { newEmail, password: emailPassword }, { headers: { Authorization: `Bearer ${token}` } });
       setUser({ ...user, email: newEmail });
       setEmailMessage('Email updated successfully!');
       setNewEmail(''); setEmailPassword('');
@@ -89,7 +90,7 @@ const Settings = ({ user, setUser, token, onPreferencesChange }) => {
 
   const handleSetAdmin = async (makeAdmin) => {
     try {
-      const res = await axios.post('http://localhost:5000/api/auth/admin/set-role', { username: adminUsername, makeAdmin }, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await axios.post(`${API_BASE}/api/auth/admin/set-role`, { username: adminUsername, makeAdmin }, { headers: { Authorization: `Bearer ${token}` } });
       setAdminMessage(res.data.message);
       setAdminUsername('');
     } catch (err) {
@@ -100,7 +101,7 @@ const Settings = ({ user, setUser, token, onPreferencesChange }) => {
   const handleUpdateUsername = async (e) => {
     e.preventDefault();
     try {
-      await axios.put('http://localhost:5000/api/auth/update-username', 
+      await axios.put(`${API_BASE}/api/auth/update-username`,
         { username },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -116,7 +117,7 @@ const Settings = ({ user, setUser, token, onPreferencesChange }) => {
   const handleUpdatePassword = async (e) => {
     e.preventDefault();
     try {
-      const response = await axios.put('http://localhost:5000/api/auth/update-password', 
+      const response = await axios.put(`${API_BASE}/api/auth/update-password`,
         { currentPassword, newPassword },
         { headers: { Authorization: `Bearer ${token}` } }
       );

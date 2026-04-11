@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import { API_BASE } from './config';
 import logoImg from '../Images/souschef_logo.png';
 import homeImg from '../Images/HomePageImage.png';
 
@@ -29,7 +30,7 @@ function Auth({ setToken, initialTab, onHome, onAbout }) {
     setVerifyLoading(true);
     setVerifyError('');
     try {
-      const res = await axios.post('http://localhost:5000/api/auth/verify-email', { userId: pendingUserId, code: verifyCode });
+      const res = await axios.post(`${API_BASE}/api/auth/verify-email`, { userId: pendingUserId, code: verifyCode });
       localStorage.setItem('token', res.data.token);
       setToken(res.data.token, {});
     } catch (err) {
@@ -42,7 +43,7 @@ function Auth({ setToken, initialTab, onHome, onAbout }) {
   const handleResend = async () => {
     setResendStatus('');
     try {
-      await axios.post('http://localhost:5000/api/auth/resend-verification', { userId: pendingUserId });
+      await axios.post(`${API_BASE}/api/auth/resend-verification`, { userId: pendingUserId });
       setResendStatus('New code sent!');
     } catch {
       setResendStatus('Failed to resend. Please try again.');
@@ -54,7 +55,7 @@ function Auth({ setToken, initialTab, onHome, onAbout }) {
     setForgotLoading(true);
     setForgotStatus('');
     try {
-      await axios.post('http://localhost:5000/api/auth/forgot-password', { email: forgotEmail });
+      await axios.post(`${API_BASE}/api/auth/forgot-password`, { email: forgotEmail });
       setForgotStatus('Check your email — a reset link has been sent.');
     } catch {
       setForgotStatus('Something went wrong. Please try again.');
@@ -73,14 +74,14 @@ function Auth({ setToken, initialTab, onHome, onAbout }) {
 
     try {
       if (isLogin) {
-        const res = await axios.post('http://localhost:5000/api/auth/login', {
+        const res = await axios.post(`${API_BASE}/api/auth/login`, {
           email: formData.email,
           password: formData.password
         });
         localStorage.setItem('token', res.data.token);
         setToken(res.data.token, res.data.user || { email: formData.email });
       } else {
-        const res = await axios.post('http://localhost:5000/api/auth/signup', {
+        const res = await axios.post(`${API_BASE}/api/auth/signup`, {
           first_name: formData.first_name,
           surname: formData.surname,
           username: formData.username,

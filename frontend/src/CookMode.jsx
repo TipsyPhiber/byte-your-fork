@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { WS_BASE } from './config';
 
-const WS_URL = 'ws://localhost:5000/ws/cook-mode';
+const WS_URL = `${WS_BASE}/ws/cook-mode`;
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
 // Filter out scraper artifacts (section headings stored as steps)
