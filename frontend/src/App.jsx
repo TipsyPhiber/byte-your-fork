@@ -1,5 +1,5 @@
 /* eslint-disable react-hooks/set-state-in-effect */
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import axios from 'axios';
 import './App.css';
 import Auth from './Auth';
@@ -267,7 +267,23 @@ function App() {
     } catch { alert('Save failed.'); }
   };
 
-  const handleLogout = () => { localStorage.removeItem('token'); setToken(null); setUser(null); setActiveTag('All'); setView('landing'); };
+  const handleLogout = useCallback(() => { localStorage.removeItem('token'); setToken(null); setUser(null); setActiveTag('All'); setView('landing'); }, []);
+
+  const inactivityTimer = useRef(null);
+  useEffect(() => {
+    if (!token) return;
+    const reset = () => {
+      clearTimeout(inactivityTimer.current);
+      inactivityTimer.current = setTimeout(handleLogout, 15 * 60 * 1000);
+    };
+    const events = ['mousedown', 'mousemove', 'keydown', 'touchstart', 'scroll', 'click'];
+    events.forEach(ev => document.addEventListener(ev, reset, { passive: true }));
+    reset();
+    return () => {
+      events.forEach(ev => document.removeEventListener(ev, reset));
+      clearTimeout(inactivityTimer.current);
+    };
+  }, [token, handleLogout]);
 
   const goToDashboard = () => {
     const prefs = user?.preferences || [];

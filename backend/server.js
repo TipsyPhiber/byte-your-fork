@@ -1,7 +1,10 @@
 const express = require('express');
 const cors = require('cors');
+const http = require('http');
 require('dotenv').config();
+
 const app = express();
+const server = http.createServer(app);
 
 app.use(cors());
 app.use(express.json());
@@ -17,5 +20,8 @@ app.use('/api/cook-mode', require('./routes/cookmode'));
 app.use('/api/comments', require('./routes/comments'));
 app.use('/api/ratings', require('./routes/ratings'));
 
+const { setupCookModeWS } = require('./cookmode-ws');
+setupCookModeWS(server);
+
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+server.listen(PORT, () => console.log(`Server running on port ${PORT}`));

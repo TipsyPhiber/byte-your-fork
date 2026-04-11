@@ -1,97 +1,171 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import axios from 'axios';
 
-const API_BASE = 'http://localhost:5000/api';
-
+const WS_URL = 'ws://localhost:5000/ws/cook-mode';
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+// Filter out scraper artifacts (section headings stored as steps)
+const STEP_NOISE = /^(instructions|directions|method|steps|preparation|how to make|procedure)\.?$/i;
+function cleanSteps(steps = []) {
+  return steps.filter(s => s && !STEP_NOISE.test(s.trim()));
+}
 
 export default function CookMode({ recipe, token, onExit }) {
   const [currentStep, setCurrentStep] = useState(0);
+  const [status, setStatus] = useState('Connecting...');
   const [listening, setListening] = useState(false);
-  const [aiResponse, setAiResponse] = useState('');
-  const [loading, setLoading] = useState(false);
   const [transcript, setTranscript] = useState('');
-  const [supported] = useState(!!SpeechRecognition);
+  const [aiText, setAiText] = useState('');
+  const [ready, setReady] = useState(false);
+
+  const wsRef = useRef(null);
   const recognizerRef = useRef(null);
-  const synthRef = useRef(window.speechSynthesis);
-  const stepCount = recipe.steps?.length || 0;
+  const steps = cleanSteps(recipe.steps);
+  const stepCount = steps.length;
 
   const speak = useCallback((text) => {
-    synthRef.current.cancel();
+    window.speechSynthesis.cancel();
     const utt = new SpeechSynthesisUtterance(text);
-    utt.rate = 0.95;
+    utt.rate = 0.88;
     utt.pitch = 1;
-    synthRef.current.speak(utt);
+    // Prefer Google/natural voices over eSpeak
+    const voices = window.speechSynthesis.getVoices();
+    const preferred =
+      voices.find(v => v.name.toLowerCase().includes('google') && v.lang.startsWith('en')) ||
+      voices.find(v => v.lang === 'en-US' && !v.name.toLowerCase().includes('espeak')) ||
+      voices.find(v => v.lang.startsWith('en'));
+    if (preferred) utt.voice = preferred;
+    window.speechSynthesis.speak(utt);
   }, []);
 
-  // Read current step aloud whenever it changes
-  useEffect(() => {
-    if (recipe.steps?.[currentStep]) {
-      speak(`Step ${currentStep + 1}. ${recipe.steps[currentStep]}`);
-    }
-  }, [currentStep, recipe.steps, speak]);
+  const stopSpeaking = useCallback(() => {
+    window.speechSynthesis.cancel();
+  }, []);
 
-  // Stop speech on unmount
   useEffect(() => {
-    return () => {
-      synthRef.current.cancel();
-      recognizerRef.current?.stop();
+    const ws = new WebSocket(`${WS_URL}?token=${token}`);
+    wsRef.current = ws;
+
+    ws.onopen = () => {
+      ws.send(JSON.stringify({ type: 'init', recipe, currentStep: 0 }));
     };
+
+    ws.onmessage = (e) => {
+      const msg = JSON.parse(e.data);
+      if (msg.type === 'ready') {
+        setReady(true);
+        setStatus('Listening...');
+      } else if (msg.type === 'text') {
+        setAiText(msg.text);
+        speak(msg.text);
+        if (msg.action === 'next') {
+          setCurrentStep(s => {
+            const next = Math.min(s + 1, stepCount - 1);
+            wsRef.current?.send(JSON.stringify({ type: 'update_step', step: next }));
+            return next;
+          });
+        } else if (msg.action === 'prev') {
+          setCurrentStep(s => {
+            const prev = Math.max(s - 1, 0);
+            wsRef.current?.send(JSON.stringify({ type: 'update_step', step: prev }));
+            return prev;
+          });
+        }
+      } else if (msg.type === 'error') {
+        setStatus(msg.message);
+      }
+    };
+
+    ws.onclose = () => setStatus('Disconnected');
+    ws.onerror = () => setStatus('Connection error');
+
+    return () => {
+      ws.close();
+      stopSpeaking();
+      stopListening();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
+
+  const notifyStepChange = useCallback((step) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: 'update_step', step }));
+    }
   }, []);
 
-  const sendToGemini = useCallback(async (text) => {
-    setLoading(true);
-    setAiResponse('');
-    try {
-      const res = await axios.post(
-        `${API_BASE}/cook-mode/chat`,
-        { message: text, recipe, currentStep },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      const { response, action } = res.data;
-      setAiResponse(response);
-      speak(response);
+  const goNext = () => {
+    const next = Math.min(currentStep + 1, stepCount - 1);
+    setCurrentStep(next);
+    setAiText('');
+    stopSpeaking();
+    notifyStepChange(next);
+  };
 
-      if (action === 'next') setCurrentStep(s => Math.min(s + 1, stepCount - 1));
-      else if (action === 'prev') setCurrentStep(s => Math.max(s - 1, 0));
-    } catch {
-      const msg = 'Sorry, I could not connect to the assistant right now.';
-      setAiResponse(msg);
-      speak(msg);
-    } finally {
-      setLoading(false);
-    }
-  }, [currentStep, recipe, stepCount, token, speak]);
+  const goPrev = () => {
+    const prev = Math.max(currentStep - 1, 0);
+    setCurrentStep(prev);
+    setAiText('');
+    stopSpeaking();
+    notifyStepChange(prev);
+  };
+
+  const stopListening = useCallback(() => {
+    recognizerRef.current?.stop();
+    setListening(false);
+  }, []);
 
   const startListening = useCallback(() => {
-    if (!supported || listening) return;
+    if (!SpeechRecognition || !ready) return;
     const recognizer = new SpeechRecognition();
     recognizer.lang = 'en-US';
+    recognizer.continuous = true;
     recognizer.interimResults = false;
-    recognizer.maxAlternatives = 1;
 
-    recognizer.onstart = () => { setListening(true); setTranscript(''); };
+    recognizer.onstart = () => setListening(true);
+
     recognizer.onresult = (e) => {
-      const said = e.results[0][0].transcript;
+      const result = e.results[e.results.length - 1];
+      if (!result.isFinal) return;
+      const said = result[0].transcript;
       setTranscript(said);
-      sendToGemini(said);
+      const lower = said.toLowerCase().trim();
+
+      if (/\b(next|next step|go next|move on|continue)\b/.test(lower)) {
+        setCurrentStep(s => {
+          const next = Math.min(s + 1, stepCount - 1);
+          wsRef.current?.send(JSON.stringify({ type: 'update_step', step: next }));
+          return next;
+        });
+        setAiText('Moving to the next step.');
+        speak('Moving to the next step.');
+        return;
+      }
+      if (/\b(back|previous|go back|prev|last step)\b/.test(lower)) {
+        setCurrentStep(s => {
+          const prev = Math.max(s - 1, 0);
+          wsRef.current?.send(JSON.stringify({ type: 'update_step', step: prev }));
+          return prev;
+        });
+        setAiText('Going back a step.');
+        speak('Going back a step.');
+        return;
+      }
+
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({ type: 'message', text: said }));
+      }
     };
-    recognizer.onerror = () => setListening(false);
+
+    recognizer.onerror = (e) => { if (e.error !== 'no-speech') stopListening(); };
     recognizer.onend = () => setListening(false);
 
     recognizerRef.current = recognizer;
-    synthRef.current.cancel();
     recognizer.start();
-  }, [supported, listening, sendToGemini]);
+  }, [ready, stepCount, speak, stopListening]);
 
-  const goNext = () => {
-    setCurrentStep(s => Math.min(s + 1, stepCount - 1));
-    setAiResponse('');
-  };
-  const goPrev = () => {
-    setCurrentStep(s => Math.max(s - 1, 0));
-    setAiResponse('');
-  };
+  // Auto-start mic once connected
+  useEffect(() => {
+    if (ready) startListening();
+  }, [ready]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const progress = ((currentStep + 1) / stepCount) * 100;
 
@@ -99,49 +173,39 @@ export default function CookMode({ recipe, token, onExit }) {
     <div className="cook-mode-overlay">
       <div className="cook-mode-container">
 
-        {/* Header */}
         <div className="cook-mode-header">
           <div>
             <div className="cook-mode-title">{recipe.title}</div>
-            <div className="cook-mode-subtitle">Step {currentStep + 1} of {stepCount}</div>
+            <div className="cook-mode-subtitle">Step {currentStep + 1} of {stepCount} · {status}</div>
           </div>
-          <button className="cook-mode-exit" onClick={() => { synthRef.current.cancel(); onExit(); }}>
+          <button className="cook-mode-exit" onClick={() => { stopSpeaking(); onExit(); }}>
             Exit Cook Mode
           </button>
         </div>
 
-        {/* Progress bar */}
         <div className="cook-mode-progress-track">
           <div className="cook-mode-progress-fill" style={{ width: `${progress}%` }} />
         </div>
 
-        {/* Current step */}
         <div className="cook-mode-step-card">
           <div className="cook-mode-step-num">Step {currentStep + 1}</div>
-          <div className="cook-mode-step-text">{recipe.steps?.[currentStep]}</div>
+          <div className="cook-mode-step-text">{steps[currentStep]}</div>
         </div>
 
-        {/* Navigation */}
         <div className="cook-mode-nav">
-          <button className="cook-mode-nav-btn" onClick={goPrev} disabled={currentStep === 0}>
-            ← Previous
-          </button>
+          <button className="cook-mode-nav-btn" onClick={goPrev} disabled={currentStep === 0}>← Previous</button>
           <button
             className={`cook-mode-mic-btn ${listening ? 'listening' : ''}`}
-            onClick={startListening}
-            disabled={!supported || loading}
-            title={supported ? 'Tap to speak' : 'Voice not supported in this browser'}
+            onClick={listening ? stopListening : startListening}
+            disabled={!ready}
           >
             {listening ? '🔴' : '🎤'}
-            <span>{listening ? 'Listening...' : loading ? 'Thinking...' : 'Ask Gemini'}</span>
+            <span>{listening ? 'Tap to mute' : !ready ? 'Connecting...' : 'Tap to unmute'}</span>
           </button>
-          <button className="cook-mode-nav-btn" onClick={goNext} disabled={currentStep === stepCount - 1}>
-            Next →
-          </button>
+          <button className="cook-mode-nav-btn" onClick={goNext} disabled={currentStep === stepCount - 1}>Next →</button>
         </div>
 
-        {/* Transcript + AI response */}
-        {(transcript || aiResponse) && (
+        {(transcript || aiText) && (
           <div className="cook-mode-chat">
             {transcript && (
               <div className="cook-mode-user-msg">
@@ -149,16 +213,15 @@ export default function CookMode({ recipe, token, onExit }) {
                 <span>"{transcript}"</span>
               </div>
             )}
-            {aiResponse && (
+            {aiText && (
               <div className="cook-mode-ai-msg">
-                <span className="cook-mode-msg-label">Gemini</span>
-                <span>{aiResponse}</span>
+                <span className="cook-mode-msg-label">Assistant</span>
+                <span>{aiText}</span>
               </div>
             )}
           </div>
         )}
 
-        {/* Ingredients quick reference */}
         <details className="cook-mode-ingredients">
           <summary>Ingredients reference</summary>
           <ul>
@@ -169,9 +232,7 @@ export default function CookMode({ recipe, token, onExit }) {
         </details>
 
         {currentStep === stepCount - 1 && (
-          <div className="cook-mode-done">
-            All steps complete! Enjoy your meal.
-          </div>
+          <div className="cook-mode-done">All steps complete — enjoy your meal!</div>
         )}
       </div>
     </div>
