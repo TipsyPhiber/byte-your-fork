@@ -6,9 +6,10 @@ const { authenticateToken } = require('../middleware/auth');
 router.get('/', async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT r.*, i.url as image_url 
-      FROM recipes r 
-      LEFT JOIN images i ON r.id = i.recipe_id 
+      SELECT r.*, i.url as image_url, t.name as tag
+      FROM recipes r
+      LEFT JOIN images i ON r.id = i.recipe_id
+      LEFT JOIN recipe_tags t ON r.id = t.recipe_id
       ORDER BY r.creation_date DESC
     `);
     res.json(result.rows);
@@ -78,9 +79,10 @@ router.get('/:id', async (req, res) => {
   const { id } = req.params;
   try {
     const recipeResult = await pool.query(`
-      SELECT r.*, i.url as image_url 
-      FROM recipes r 
-      LEFT JOIN images i ON r.id = i.recipe_id 
+      SELECT r.*, i.url as image_url, t.name as tag
+      FROM recipes r
+      LEFT JOIN images i ON r.id = i.recipe_id
+      LEFT JOIN recipe_tags t ON r.id = t.recipe_id
       WHERE r.id = $1
     `, [id]);
     if (recipeResult.rows.length === 0) return res.status(404).json({ error: "Recipe Not Found" });
@@ -104,6 +106,59 @@ router.get('/:id', async (req, res) => {
     console.error(err);
     res.status(500).json({ error: "Fetch Failed" });
   }
+});
+
+router.delete('/:id', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  const adminResult = await pool.query('SELECT 1 FROM admins WHERE user_id = $1', [req.user.id]);
+  if (adminResult.rows.length === 0) return res.status(403).json({ error: "Admins only" });
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('DELETE FROM images WHERE recipe_id = $1', [id]);
+    await client.query('DELETE FROM amount WHERE ingredient_id IN (SELECT id FROM ingredients WHERE recipe_id = $1)', [id]);
+    await client.query('DELETE FROM ingredients WHERE recipe_id = $1', [id]);
+    await client.query('DELETE FROM steps WHERE recipe_id = $1', [id]);
+    await client.query('DELETE FROM recipe_tags WHERE recipe_id = $1', [id]);
+    await client.query('DELETE FROM recipes WHERE id = $1', [id]);
+    await client.query('COMMIT');
+    res.json({ success: true });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: "Delete Failed" });
+  } finally { client.release(); }
+});
+
+router.put('/:id', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  const adminResult = await pool.query('SELECT 1 FROM admins WHERE user_id = $1', [req.user.id]);
+  if (adminResult.rows.length === 0) return res.status(403).json({ error: "Admins only" });
+
+  const { title, ttc, ingredients, steps } = req.body;
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('UPDATE recipes SET title = $1, ttc = $2 WHERE id = $3', [title, ttc, id]);
+
+    await client.query('DELETE FROM amount WHERE ingredient_id IN (SELECT id FROM ingredients WHERE recipe_id = $1)', [id]);
+    await client.query('DELETE FROM ingredients WHERE recipe_id = $1', [id]);
+    for (const ing of ingredients) {
+      const iRes = await client.query('INSERT INTO ingredients (recipe_id, name) VALUES ($1, $2) RETURNING id', [id, ing.name]);
+      await client.query('INSERT INTO amount (ingredient_id, name) VALUES ($1, $2)', [iRes.rows[0].id, ing.amount]);
+    }
+
+    await client.query('DELETE FROM steps WHERE recipe_id = $1', [id]);
+    for (const step of steps) {
+      await client.query('INSERT INTO steps (recipe_id, instruction) VALUES ($1, $2)', [id, step]);
+    }
+
+    await client.query('COMMIT');
+    res.json({ success: true });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: "Update Failed" });
+  } finally { client.release(); }
 });
 
 module.exports = router;

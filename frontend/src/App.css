@@ -77,7 +77,6 @@ body { margin: 0; font-family: 'Inter', sans-serif; background: #fff; }
 }
 .recipe-card:hover { transform: translateY(-5px); }
 .recipe-card-img { width: 100%; aspect-ratio: 4/3; object-fit: cover; }
-.recipe-card-info { padding: 15px; font-weight: 700; color: var(--dark-blue); font-size: 1.1rem; }
 
 .modal-overlay {
   position: fixed; top: 0; left: 0; right: 0; bottom: 0;
@@ -191,3 +190,44 @@ body { margin: 0; font-family: 'Inter', sans-serif; background: #fff; }
   cursor: pointer;
   text-decoration: underline;
 }
+
+/* ── Tag filter ── */
+.tag-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.tag-pill {
+  background: white;
+  border: 1.5px solid #e5e7eb;
+  color: var(--text-light);
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.tag-pill:hover { border-color: var(--accent-indigo); color: var(--accent-indigo); }
+.tag-pill.active { background: var(--accent-indigo); border-color: var(--accent-indigo); color: white; }
+
+/* ── Recipe card tag label ── */
+.recipe-card-info { padding: 15px; display: flex; flex-direction: column; gap: 4px; }
+.recipe-card-info > div:first-child { font-weight: 700; color: var(--dark-blue); font-size: 1rem; }
+.recipe-card-tag { font-size: 0.75rem; color: var(--text-light); font-weight: 500; }
+
+/* ── Edit form inputs ── */
+.edit-input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s;
+  background: #f9fafb;
+}
+.edit-input:focus { border-color: var(--accent-indigo); background: white; }

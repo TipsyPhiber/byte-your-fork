@@ -17,10 +17,12 @@ function App() {
   const [user, setUser] = useState(null);
   const [view, setView] = useState(() => localStorage.getItem('token') ? 'dashboard' : 'landing');
   const [recipes, setRecipes] = useState([]);
+  const [activeTag, setActiveTag] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRecipe, setSelectedRecipe] = useState(null);
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [editForm, setEditForm] = useState(null);
 
   const fetchRecipes = useCallback(async () => {
     try {
@@ -35,10 +37,7 @@ function App() {
     async function init() {
       try {
         const profile = await axios.get(`${API_BASE}/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
-        if (isMounted) {
-          setUser(profile.data);
-          fetchRecipes();
-        }
+        if (isMounted) { setUser(profile.data); fetchRecipes(); }
       } catch (err) { if (err.response?.status === 401) { localStorage.removeItem('token'); setToken(null); } }
     }
     init();
@@ -66,12 +65,37 @@ function App() {
     try {
       const res = await axios.get(`${API_BASE}/recipes/${id}`);
       setSelectedRecipe(res.data);
+      setEditForm(null);
     } catch (e) { console.error('Open error', e); }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Delete this recipe? This cannot be undone.')) return;
+    try {
+      await axios.delete(`${API_BASE}/recipes/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+      setSelectedRecipe(null);
+      fetchRecipes();
+    } catch { alert('Delete failed.'); }
+  };
+
+  const handleSaveEdit = async () => {
+    try {
+      await axios.put(`${API_BASE}/recipes/${selectedRecipe.id}`,
+        { title: editForm.title, ttc: parseInt(editForm.ttc), ingredients: editForm.ingredients, steps: editForm.steps },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setEditForm(null);
+      await openRecipe(selectedRecipe.id);
+      fetchRecipes();
+    } catch { alert('Save failed.'); }
   };
 
   const handleLogout = () => { localStorage.removeItem('token'); setToken(null); setView('landing'); };
 
   const isAdmin = user?.role === 'admin' || user?.id === 1;
+
+  const allTags = ['All', ...Array.from(new Set(recipes.map(r => r.tag).filter(Boolean))).sort()];
+  const filteredRecipes = activeTag === 'All' ? recipes : recipes.filter(r => r.tag === activeTag);
 
   if (!token) {
     const commonProps = { setToken: (t, u) => { setToken(t); setUser(u); setView('dashboard'); localStorage.setItem('token', t); }, onHome: () => setView('landing'), onAbout: () => setView('about') };
@@ -122,57 +146,129 @@ function App() {
               </div>
             )}
           </div>
-          <div onClick={() => setView('settings')} style={{ cursor: 'pointer', fontWeight: 600 }}>Account V</div>
+          <div onClick={() => setView('settings')} style={{ cursor: 'pointer', fontWeight: 600 }}>Account ▾</div>
         </header>
 
         <div className="content-area">
           {view === 'settings' && <Settings user={user} setUser={setUser} token={token} />}
           {view === 'add-recipe' && <AddRecipe token={token} onRecipeAdded={() => { setView('dashboard'); fetchRecipes(); }} />}
+
           {(view === 'dashboard' || view === 'explore') && (
             <div>
-              <h2 style={{ marginBottom: '30px', color: 'var(--dark-blue)' }}>{view === 'dashboard' ? 'Featured Recipes' : 'Explore All'}</h2>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <h2 style={{ margin: 0, color: 'var(--dark-blue)' }}>{view === 'dashboard' ? 'Featured Recipes' : 'Explore All'}</h2>
+              </div>
+
+              <div className="tag-filter">
+                {allTags.map(tag => (
+                  <button
+                    key={tag}
+                    className={`tag-pill ${activeTag === tag ? 'active' : ''}`}
+                    onClick={() => setActiveTag(tag)}
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
+
               <div className="recipe-grid">
-                {recipes.map(r => (
+                {filteredRecipes.map(r => (
                   <div key={r.id} className="recipe-card" onClick={() => openRecipe(r.id)}>
                     <img className="recipe-card-img" src={r.image_url || FALLBACK_IMG} onError={e => e.target.src = FALLBACK_IMG} alt={r.title} />
-                    <div className="recipe-card-info">{r.title}</div>
+                    <div className="recipe-card-info">
+                      <div>{r.title}</div>
+                      {r.tag && <div className="recipe-card-tag">{r.tag}</div>}
+                    </div>
                   </div>
                 ))}
               </div>
             </div>
           )}
+
           {view === 'notifications' && <div style={{ textAlign: 'center', padding: '50px' }}><h2>Notifications</h2><p>No new notifications.</p></div>}
         </div>
       </main>
 
       {selectedRecipe && (
-        <div className="modal-overlay" onClick={() => setSelectedRecipe(null)}>
+        <div className="modal-overlay" onClick={() => { setSelectedRecipe(null); setEditForm(null); }}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <button className="modal-close-btn" onClick={() => setSelectedRecipe(null)}>✕</button>
-            <img className="modal-hero" src={selectedRecipe.image_url || FALLBACK_IMG} onError={e => e.target.src = FALLBACK_IMG} alt="" />
-            <div className="modal-scroll">
-              <h1 style={{ fontSize: '2.5rem', color: 'var(--dark-blue)', margin: '0 0 10px 0' }}>{selectedRecipe.title}</h1>
-              <div className="recipe-meta">
-                <span>⏱️ {selectedRecipe.ttc} mins</span>
-                <span>👨‍🍳 Admin</span>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '40px' }}>
-                <div>
-                  <h3 className="recipe-section-title">Ingredients</h3>
-                  <ul style={{ paddingLeft: '20px', lineHeight: '2' }}>
-                    {selectedRecipe.ingredients?.map((ing, i) => (
-                      <li key={i}><strong>{ing.amount}</strong> {ing.name}</li>
-                    ))}
-                  </ul>
+            <button className="modal-close-btn" onClick={() => { setSelectedRecipe(null); setEditForm(null); }}>✕</button>
+
+            {editForm ? (
+              <div className="modal-scroll" style={{ paddingTop: '60px' }}>
+                <h2 style={{ color: 'var(--dark-blue)', marginBottom: '24px' }}>Edit Recipe</h2>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '24px' }}>
+                  <input className="edit-input" value={editForm.title} onChange={e => setEditForm({ ...editForm, title: e.target.value })} placeholder="Title" />
+                  <input className="edit-input" type="number" value={editForm.ttc} onChange={e => setEditForm({ ...editForm, ttc: e.target.value })} placeholder="Time to cook (mins)" />
                 </div>
-                <div>
-                  <h3 className="recipe-section-title">Instructions</h3>
-                  <ol style={{ paddingLeft: '20px', lineHeight: '1.8' }}>
-                    {selectedRecipe.steps?.map((s, i) => <li key={i} style={{ marginBottom: '15px' }}>{s}</li>)}
-                  </ol>
+
+                <h3 className="recipe-section-title">Ingredients</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '24px' }}>
+                  {editForm.ingredients.map((ing, i) => (
+                    <div key={i} style={{ display: 'flex', gap: '8px' }}>
+                      <input className="edit-input" style={{ flex: 2 }} value={ing.name} onChange={e => { const ings = [...editForm.ingredients]; ings[i] = { ...ings[i], name: e.target.value }; setEditForm({ ...editForm, ingredients: ings }); }} placeholder="Ingredient" />
+                      <input className="edit-input" style={{ flex: 1 }} value={ing.amount} onChange={e => { const ings = [...editForm.ingredients]; ings[i] = { ...ings[i], amount: e.target.value }; setEditForm({ ...editForm, ingredients: ings }); }} placeholder="Amount" />
+                      <button onClick={() => setEditForm({ ...editForm, ingredients: editForm.ingredients.filter((_, j) => j !== i) })} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem' }}>🗑️</button>
+                    </div>
+                  ))}
+                  <button className="tag-pill" onClick={() => setEditForm({ ...editForm, ingredients: [...editForm.ingredients, { name: '', amount: '' }] })}>+ Add Ingredient</button>
+                </div>
+
+                <h3 className="recipe-section-title">Instructions</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '24px' }}>
+                  {editForm.steps.map((step, i) => (
+                    <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                      <span style={{ paddingTop: '10px', fontWeight: 'bold', color: 'var(--primary-blue)', minWidth: '20px' }}>{i + 1}.</span>
+                      <textarea className="edit-input" style={{ flex: 1, minHeight: '70px', resize: 'vertical' }} value={step} onChange={e => { const steps = [...editForm.steps]; steps[i] = e.target.value; setEditForm({ ...editForm, steps }); }} />
+                      <button onClick={() => setEditForm({ ...editForm, steps: editForm.steps.filter((_, j) => j !== i) })} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', paddingTop: '8px' }}>🗑️</button>
+                    </div>
+                  ))}
+                  <button className="tag-pill" onClick={() => setEditForm({ ...editForm, steps: [...editForm.steps, ''] })}>+ Add Step</button>
+                </div>
+
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <button className="primary-button" onClick={handleSaveEdit}>Save Changes</button>
+                  <button className="primary-button" style={{ background: '#6b7280' }} onClick={() => setEditForm(null)}>Cancel</button>
                 </div>
               </div>
-            </div>
+            ) : (
+              <>
+                <img className="modal-hero" src={selectedRecipe.image_url || FALLBACK_IMG} onError={e => e.target.src = FALLBACK_IMG} alt="" />
+                <div className="modal-scroll">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
+                    <h1 style={{ fontSize: '2.5rem', color: 'var(--dark-blue)', margin: 0 }}>{selectedRecipe.title}</h1>
+                    {isAdmin && (
+                      <div style={{ display: 'flex', gap: '8px', flexShrink: 0, marginLeft: '16px', paddingTop: '8px' }}>
+                        <button className="tag-pill" onClick={() => setEditForm({ title: selectedRecipe.title, ttc: selectedRecipe.ttc, ingredients: selectedRecipe.ingredients || [], steps: selectedRecipe.steps || [] })}>Edit</button>
+                        <button className="tag-pill" style={{ background: '#fee2e2', color: '#b91c1c', borderColor: '#fecaca' }} onClick={() => handleDelete(selectedRecipe.id)}>Delete</button>
+                      </div>
+                    )}
+                  </div>
+                  <div className="recipe-meta">
+                    <span>⏱️ {selectedRecipe.ttc} mins</span>
+                    <span>👨‍🍳 Admin</span>
+                    {selectedRecipe.tag && <span>🍽️ {selectedRecipe.tag}</span>}
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '40px' }}>
+                    <div>
+                      <h3 className="recipe-section-title">Ingredients</h3>
+                      <ul style={{ paddingLeft: '20px', lineHeight: '2' }}>
+                        {selectedRecipe.ingredients?.map((ing, i) => (
+                          <li key={i}><strong>{ing.amount}</strong> {ing.name}</li>
+                        ))}
+                      </ul>
+                    </div>
+                    <div>
+                      <h3 className="recipe-section-title">Instructions</h3>
+                      <ol style={{ paddingLeft: '20px', lineHeight: '1.8' }}>
+                        {selectedRecipe.steps?.map((s, i) => <li key={i} style={{ marginBottom: '15px' }}>{s}</li>)}
+                      </ol>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
