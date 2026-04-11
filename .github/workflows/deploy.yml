@@ -18,9 +18,10 @@ jobs:
             set -e
             cd ~/ByteYourFork
             git pull origin main
-            cd frontend
+            cd backend
+            npm install
+            cd ../frontend
             npm install
             npm run build
             chmod -R o+r dist
-            cd ..
             pm2 restart byteyourfork

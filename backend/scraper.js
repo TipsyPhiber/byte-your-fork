@@ -40,7 +40,8 @@ async function saveRecipe(r) {
         [rid, imgData.buffer, imgData.mimeType, '']
       );
       const imageId = imgRes.rows[0].id;
-      await client.query('UPDATE images SET url = $1 WHERE id = $2', [`http://localhost:5000/api/images/${imageId}`, imageId]);
+      const appUrl = process.env.APP_URL || 'http://localhost:5000';
+      await client.query('UPDATE images SET url = $1 WHERE id = $2', [`${appUrl}/api/images/${imageId}`, imageId]);
     }
 
     await client.query('INSERT INTO recipe_tags (recipe_id, name) VALUES ($1, $2)', [rid, r.category]);
