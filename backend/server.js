@@ -11,6 +11,9 @@ app.use(express.json());
 app.use('/uploads', express.static('uploads'));
 
 app.use('/api/auth', require('./routes/auth'));
+app.use('/api/auth', require('./routes/profile'));
+app.use('/api/auth', require('./routes/preferences'));
+app.use('/api/auth', require('./routes/admin'));
 app.use('/api/recipes', require('./routes/recipes'));
 app.use('/api/search', require('./routes/search'));
 app.use('/api/images', require('./routes/images'));

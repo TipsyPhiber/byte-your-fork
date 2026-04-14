@@ -1,0 +1,51 @@
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import { API_BASE } from '../config';
+
+const FALLBACK_IMG = 'https://images.unsplash.com/photo-1495195129352-aec325a55b65?auto=format&fit=crop&w=600&q=80';
+
+export default function SearchBar({ onSelect }) {
+  const [query, setQuery] = useState('');
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
+  useEffect(() => {
+    if (query.trim().length >= 2) {
+      const timer = setTimeout(async () => {
+        try {
+          const res = await axios.get(`${API_BASE}/api/search?query=${encodeURIComponent(query.trim())}`);
+          setSuggestions(res.data);
+          setShowSuggestions(true);
+        } catch { /* ignore */ }
+      }, 300);
+      return () => clearTimeout(timer);
+    } else {
+      setSuggestions([]);
+      setShowSuggestions(false);
+    }
+  }, [query]);
+
+  return (
+    <div className="search-container">
+      <input
+        type="text"
+        className="search-bar"
+        value={query}
+        onChange={e => setQuery(e.target.value)}
+        onFocus={() => { if (query.trim().length >= 2 && suggestions.length > 0) setShowSuggestions(true); }}
+        onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+        placeholder="Search recipes..."
+      />
+      {showSuggestions && suggestions.length > 0 && (
+        <div className="search-suggestions">
+          {suggestions.map(s => (
+            <div key={s.id} className="suggestion-item" onClick={() => { onSelect(s.id); setQuery(''); setShowSuggestions(false); }}>
+              <img src={s.image_url || FALLBACK_IMG} onError={e => e.target.src = FALLBACK_IMG} alt="" />
+              <span>{s.title}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
