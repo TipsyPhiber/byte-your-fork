@@ -19,7 +19,7 @@ export default function RecipeGrid({ list, favoritedIds, onOpen, onToggleFavorit
               onClick={e => onToggleFavorite(e, r.id)}
               title={favoritedIds.has(r.id) ? 'Unfavorite' : 'Favorite'}
             >
-              {favoritedIds.has(r.id) ? '❤️' : '🤍'}
+              {favoritedIds.has(r.id) ? '🍴' : '🍴'}
             </button>
           </div>
           <div className="recipe-card-info">

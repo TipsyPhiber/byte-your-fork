@@ -292,6 +292,11 @@ body { margin: 0; font-family: 'Inter', sans-serif; background: #fff; }
   transition: transform 0.15s;
 }
 .heart-btn:hover { transform: scale(1.2); }
+.heart-btn.favorited {
+  background: var(--primary-blue);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+}
+.heart-btn.favorited:hover { background: var(--dark-blue); }
 
 /* ── Edit form inputs ── */
 .edit-input {

@@ -21,7 +21,7 @@ export default function MobileNav({ isOpen, onClose, view, onNavigate, onHome, u
         <nav className="mobile-nav-links">
           <button className={`mobile-nav-item ${view === 'dashboard' ? 'active' : ''}`} onClick={() => { onHome(); onClose(); }}>🏠 <span>Home</span></button>
           <button className={`mobile-nav-item ${view === 'explore' ? 'active' : ''}`} onClick={() => onNavigate('explore')}>🔍 <span>Explore</span></button>
-          <button className={`mobile-nav-item ${view === 'favorites' ? 'active' : ''}`} onClick={() => onNavigate('favorites')}>❤️ <span>Favorites</span></button>
+          <button className={`mobile-nav-item ${view === 'favorites' ? 'active' : ''}`} onClick={() => onNavigate('favorites')}>🍴 <span>Favorites</span></button>
           <button className={`mobile-nav-item ${view === 'notifications' ? 'active' : ''}`} onClick={() => onNavigate('notifications')}>
             🔔 <span>Notifications</span>
             {notifCount > 0 && <span className="notif-badge">{notifCount}</span>}

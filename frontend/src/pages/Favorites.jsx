@@ -8,7 +8,7 @@ export default function Favorites({ favoriteRecipes, favoritedIds, onOpen, onTog
       {favoriteRecipes.length === 0
         ? (
           <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text-light)' }}>
-            <div style={{ fontSize: '3rem', marginBottom: '16px' }}>🤍</div>
+            <div style={{ fontSize: '3rem', marginBottom: '16px' }}>🍴</div>
             <p>No favorites yet — heart a recipe to save it here.</p>
           </div>
         )

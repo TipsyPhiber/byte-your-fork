@@ -2,6 +2,19 @@ const WebSocket = require('ws');
 const jwt = require('jsonwebtoken');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
+// Strip markdown so the TTS engine never reads asterisks, hashes, etc. aloud
+function stripMarkdown(text) {
+  return text
+    .replace(/\*{1,3}([^*\n]+)\*{1,3}/g, '$1')  // ***bold italic***, **bold**, *italic*
+    .replace(/_{1,2}([^_\n]+)_{1,2}/g, '$1')      // __bold__, _italic_
+    .replace(/`([^`]+)`/g, '$1')                   // `inline code`
+    .replace(/^#{1,6}\s+/gm, '')                   // ## headings
+    .replace(/^[-*]\s+/gm, '')                     // - bullet points
+    .replace(/\*/g, '')                            // any stray asterisks left over
+    .replace(/\n{2,}/g, ' ')                       // collapse multiple newlines into a space
+    .trim();
+}
+
 function buildSystemInstruction(recipe, currentStep) {
   const ingredientsList = (recipe.ingredients || [])
     .map(i => `${i.amount} ${i.name}`.trim())
@@ -21,8 +34,10 @@ ${stepsList}
 Current step: Step ${currentStep + 1} of ${recipe.steps?.length || 0}: "${recipe.steps?.[currentStep] || ''}"
 
 Rules:
-- Keep all responses short and natural — they are spoken aloud, not read
-- No markdown, bullet points, or special characters in responses
+- Respond in plain spoken English only — your response will be read aloud by a text-to-speech engine
+- Never use asterisks, pound signs, underscores, backticks, or any markdown formatting whatsoever
+- Never use bullet points, numbered lists, or special characters
+- Keep responses short — two sentences maximum
 - If the user says "next" or "next step" — respond with exactly: Moving to the next step.
 - If the user says "back", "previous", or "go back" — respond with exactly: Going back a step.
 - If the user says "repeat" or "say that again" — repeat the current step text
@@ -57,7 +72,7 @@ function setupCookModeWS(server) {
           { text: buildSystemInstruction(recipe, currentStep) },
           { text: `User said: "${userText}"` }
         ]);
-        const text = result.response.text().trim();
+        const text = stripMarkdown(result.response.text());
         let action = null;
         if (/moving to the next step/i.test(text)) action = 'next';
         else if (/going back a step/i.test(text)) action = 'prev';

@@ -32,6 +32,13 @@ export default function CookMode({ recipe, token, onExit }) {
     };
   }, []);
 
+  // Stop speech on page refresh/navigation — browser TTS survives JS cleanup otherwise
+  useEffect(() => {
+    const handleUnload = () => window.speechSynthesis.cancel();
+    window.addEventListener('beforeunload', handleUnload);
+    return () => window.removeEventListener('beforeunload', handleUnload);
+  }, []);
+
   // Elapsed cook timer
   useEffect(() => {
     const id = setInterval(() => setElapsed(s => s + 1), 1000);

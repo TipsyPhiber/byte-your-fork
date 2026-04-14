@@ -23,7 +23,7 @@ export default function Sidebar({ view, onNavigate, onHome, user, isAdmin, notif
       <nav className="sidebar-nav">
         <button className={`nav-icon-button ${view === 'dashboard' ? 'active' : ''}`} onClick={onHome} title="Home">🏠</button>
         <button className={`nav-icon-button ${view === 'explore' ? 'active' : ''}`} onClick={() => onNavigate('explore')} title="Explore">🔍</button>
-        <button className={`nav-icon-button ${view === 'favorites' ? 'active' : ''}`} onClick={() => onNavigate('favorites')} title="Favorites">❤️</button>
+        <button className={`nav-icon-button ${view === 'favorites' ? 'active' : ''}`} onClick={() => onNavigate('favorites')} title="Favorites">🍴</button>
         <button className={`nav-icon-button ${view === 'notifications' ? 'active' : ''}`} onClick={() => onNavigate('notifications')} title="Notifications" style={{ position: 'relative' }}>
           🔔
           {notifCount > 0 && <span className="notif-badge">{notifCount}</span>}

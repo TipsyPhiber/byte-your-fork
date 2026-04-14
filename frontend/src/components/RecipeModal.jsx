@@ -54,7 +54,7 @@ export default function RecipeModal({ recipe, token, user, isAdmin, favoritedIds
                     onClick={e => onToggleFavorite(e, recipe.id)}
                     title={favoritedIds.has(recipe.id) ? 'Unfavorite' : 'Save to Favorites'}
                   >
-                    {favoritedIds.has(recipe.id) ? '❤️' : '🤍'}
+                    {favoritedIds.has(recipe.id) ? '🍴' : '🍴'}
                   </button>
                   <button className="primary-button" style={{ padding: '10px 20px', fontSize: '0.9rem' }} onClick={() => setCookMode(true)}>
                     👨‍🍳 Cook Mode
