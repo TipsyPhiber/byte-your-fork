@@ -1,5 +1,6 @@
 import React from 'react';
 import logoImg from '../../Images/souschef_logo.png';
+import { Home, Search, Bookmark, Bell, Plus, Settings as SettingsIcon, LogOut } from 'lucide-react';
 
 export default function MobileNav({ isOpen, onClose, view, onNavigate, onHome, user, isAdmin, notifCount, onLogout }) {
   if (!isOpen) return null;
@@ -19,18 +20,30 @@ export default function MobileNav({ isOpen, onClose, view, onNavigate, onHome, u
         </div>
 
         <nav className="mobile-nav-links">
-          <button className={`mobile-nav-item ${view === 'dashboard' ? 'active' : ''}`} onClick={() => { onHome(); onClose(); }}>🏠 <span>Home</span></button>
-          <button className={`mobile-nav-item ${view === 'explore' ? 'active' : ''}`} onClick={() => onNavigate('explore')}>🔍 <span>Explore</span></button>
-          <button className={`mobile-nav-item ${view === 'favorites' ? 'active' : ''}`} onClick={() => onNavigate('favorites')}>🍴 <span>Favorites</span></button>
+          <button className={`mobile-nav-item ${view === 'dashboard' ? 'active' : ''}`} onClick={() => { onHome(); onClose(); }}>
+            <Home size={18} /> <span>Home</span>
+          </button>
+          <button className={`mobile-nav-item ${view === 'explore' ? 'active' : ''}`} onClick={() => onNavigate('explore')}>
+            <Search size={18} /> <span>Explore</span>
+          </button>
+          <button className={`mobile-nav-item ${view === 'favorites' ? 'active' : ''}`} onClick={() => onNavigate('favorites')}>
+            <Bookmark size={18} /> <span>Favorites</span>
+          </button>
           <button className={`mobile-nav-item ${view === 'notifications' ? 'active' : ''}`} onClick={() => onNavigate('notifications')}>
-            🔔 <span>Notifications</span>
-            {notifCount > 0 && <span className="notif-badge">{notifCount}</span>}
+            <Bell size={18} /> <span>Notifications</span>
+            {notifCount > 0 && <span className="notif-badge" style={{ position: 'relative', top: 'auto', right: 'auto' }}>{notifCount}</span>}
           </button>
           {isAdmin && (
-            <button className={`mobile-nav-item ${view === 'add-recipe' ? 'active' : ''}`} onClick={() => onNavigate('add-recipe')}>➕ <span>Add Recipe</span></button>
+            <button className={`mobile-nav-item ${view === 'add-recipe' ? 'active' : ''}`} onClick={() => onNavigate('add-recipe')}>
+              <Plus size={18} /> <span>Add Recipe</span>
+            </button>
           )}
-          <button className={`mobile-nav-item ${view === 'settings' ? 'active' : ''}`} onClick={() => onNavigate('settings')}>⚙️ <span>Settings</span></button>
-          <button className="mobile-nav-item mobile-nav-logout" onClick={onLogout}>🚪 <span>Logout</span></button>
+          <button className={`mobile-nav-item ${view === 'settings' ? 'active' : ''}`} onClick={() => onNavigate('settings')}>
+            <SettingsIcon size={18} /> <span>Settings</span>
+          </button>
+          <button className="mobile-nav-item mobile-nav-logout" onClick={onLogout}>
+            <LogOut size={18} /> <span>Sign Out</span>
+          </button>
         </nav>
       </div>
     </div>

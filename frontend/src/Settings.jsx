@@ -121,17 +121,14 @@ const Settings = ({ user, setUser, token, onPreferencesChange, darkMode, setDark
         { currentPassword, newPassword },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      alert(response.data.message || 'Password updated successfully!');
       setMessage('Password updated successfully!');
       setError('');
       setCurrentPassword('');
       setNewPassword('');
     } catch (err) {
-      console.error('Password Update Catch:', err);
       const errMsg = err.response?.data?.error || err.response?.data || 'Failed to update password.';
       const finalMsg = typeof errMsg === 'string' ? errMsg : JSON.stringify(errMsg);
       setError(finalMsg);
-      alert('Error: ' + finalMsg);
       setMessage('');
     }
   };
@@ -156,7 +153,7 @@ const Settings = ({ user, setUser, token, onPreferencesChange, darkMode, setDark
       <div className="settings-card" style={{ padding: '30px', borderRadius: '15px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)', marginBottom: '30px' }}>
         <h3 style={{ marginTop: 0, marginBottom: '20px' }}>Profile Picture</h3>
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-          <div style={{ width: 72, height: 72, borderRadius: '50%', overflow: 'hidden', border: '3px solid var(--primary-blue)', flexShrink: 0 }}>
+          <div style={{ width: 72, height: 72, borderRadius: '16px', overflow: 'hidden', border: '2px solid var(--accent)', flexShrink: 0 }}>
             {avatarPreview
               ? <img src={avatarPreview} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               : <div style={{ width: '100%', height: '100%', background: 'var(--primary-blue)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: '1.5rem' }}>

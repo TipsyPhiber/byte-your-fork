@@ -1,5 +1,5 @@
 /* eslint-disable react-hooks/exhaustive-deps */
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import './App.css';
 import { API_BASE } from './config';
@@ -16,9 +16,7 @@ import About from './About';
 import Settings from './Settings';
 import AddRecipe from './AddRecipe';
 
-import Sidebar from './components/Sidebar';
-import MobileNav from './components/MobileNav';
-import SearchBar from './components/SearchBar';
+import BottomNav from './components/BottomNav';
 import RecipeModal from './components/RecipeModal';
 import ResetPasswordForm from './components/ResetPasswordForm';
 
@@ -33,18 +31,15 @@ function App() {
   const { token, user, setUser, login, logout } = useAuth();
   const [dark, setDark] = useDarkMode();
   const [view, setView] = useState(() => token ? 'dashboard' : 'landing');
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const { recipes, selectedRecipe, fetchRecipes, openRecipe, closeRecipe, updateRecipeRating } = useRecipes(token);
   const { favoritedIds, favoriteRecipes, fetchFavorites, toggleFavorite } = useFavorites(token);
   const { visibleNotifs, setClearedAt, fetchNotifications, handleClearNotifications, handleDismissNotification } = useNotifications(token);
 
-  // Reset view to landing when token is cleared (logout or inactivity)
   useEffect(() => {
     if (!token) setView('landing');
   }, [token]);
 
-  // Bootstrap user data after login
   useEffect(() => {
     if (!token) return;
     let mounted = true;
@@ -68,34 +63,20 @@ function App() {
   const goToDashboard = useCallback(() => setView('dashboard'), []);
   const isAdmin = user?.role === 'admin';
 
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const userMenuRef = useRef(null);
-  useEffect(() => {
-    if (!userMenuOpen) return;
-    const handler = (e) => {
-      if (userMenuRef.current && !userMenuRef.current.contains(e.target)) setUserMenuOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [userMenuOpen]);
-
-  // Coordinator: toggleFavorite needs the full recipe list for optimistic add
   const handleToggleFavorite = useCallback((e, recipeId) => {
     toggleFavorite(e, recipeId, recipes);
   }, [toggleFavorite, recipes]);
 
-  // Coordinator: delete touches both recipes and favorites
   const handleDelete = useCallback(async (id) => {
-    if (!window.confirm('Delete this recipe? This cannot be undone.')) return;
     try {
       await axios.delete(`${BASE}/recipes/${id}`, { headers: { Authorization: `Bearer ${token}` } });
       closeRecipe();
       fetchRecipes();
       fetchFavorites();
-    } catch { alert('Delete failed.'); }
+    } catch { /* silently fail — modal already shows error state */ }
   }, [token, closeRecipe, fetchRecipes, fetchFavorites]);
 
-  // Handle password reset link (?reset_token=xxx) before rendering anything else
+  // Auth / pre-login screens
   if (!token) {
     const urlParams = new URLSearchParams(window.location.search);
     const resetToken = urlParams.get('reset_token');
@@ -116,15 +97,31 @@ function App() {
       onHome: () => setView('landing'),
       onAbout: () => setView('about'),
     };
-    if (view === 'login') return <Auth {...authProps} initialTab="login" />;
+    if (view === 'login')  return <Auth {...authProps} initialTab="login" />;
     if (view === 'signup') return <Auth {...authProps} initialTab="signup" />;
-    if (view === 'about') return <About onHome={() => setView('landing')} />;
+    if (view === 'about')  return <About onHome={() => setView('landing')} />;
     return <LandingPage onLogin={() => setView('login')} onSignUp={() => setView('signup')} onAbout={() => setView('about')} />;
   }
 
   return (
     <div className="app-container">
-      <Sidebar
+      <div className="bg-canvas" aria-hidden="true">
+        <div className="bg-blob bg-blob-1" />
+        <div className="bg-blob bg-blob-2" />
+        <div className="bg-blob bg-blob-3" />
+      </div>
+      <main className="main-content">
+        <div className="content-area">
+          {view === 'dashboard'     && <Dashboard recipes={recipes} user={user} favoritedIds={favoritedIds} onOpen={openRecipe} onToggleFavorite={handleToggleFavorite} />}
+          {view === 'explore'       && <Explore recipes={recipes} favoritedIds={favoritedIds} onOpen={openRecipe} onToggleFavorite={handleToggleFavorite} />}
+          {view === 'favorites'     && <Favorites favoriteRecipes={favoriteRecipes} favoritedIds={favoritedIds} onOpen={openRecipe} onToggleFavorite={handleToggleFavorite} />}
+          {view === 'notifications' && <Notifications visibleNotifs={visibleNotifs} onClear={handleClearNotifications} onDismiss={handleDismissNotification} onOpen={openRecipe} />}
+          {view === 'settings'      && <Settings user={user} setUser={setUser} token={token} onPreferencesChange={() => {}} darkMode={dark} setDarkMode={setDark} />}
+          {view === 'add-recipe'    && <AddRecipe token={token} onRecipeAdded={() => { goToDashboard(); fetchRecipes(); }} />}
+        </div>
+      </main>
+
+      <BottomNav
         view={view}
         onNavigate={setView}
         onHome={goToDashboard}
@@ -132,49 +129,6 @@ function App() {
         isAdmin={isAdmin}
         notifCount={visibleNotifs.length}
         onLogout={logout}
-      />
-
-      <main className="main-content">
-        <header className="header-bar">
-          <button className="hamburger-btn" onClick={() => setMobileMenuOpen(true)} aria-label="Open menu">
-            <span /><span /><span />
-          </button>
-          <div style={{ flex: 1 }}>
-            {view === 'explore' && <SearchBar onSelect={openRecipe} />}
-          </div>
-          <div className="user-menu-wrapper" ref={userMenuRef}>
-            <button className="user-menu-trigger" onClick={() => setUserMenuOpen(o => !o)}>
-              @{user?.username} ▾
-            </button>
-            {userMenuOpen && (
-              <div className="user-menu-dropdown">
-                <button onClick={() => { setView('settings'); setUserMenuOpen(false); }}>Settings</button>
-                <button className="signout-btn" onClick={() => { logout(); setUserMenuOpen(false); }}>Sign Out</button>
-              </div>
-            )}
-          </div>
-        </header>
-
-        <div className="content-area">
-          {view === 'settings' && <Settings user={user} setUser={setUser} token={token} onPreferencesChange={() => {}} darkMode={dark} setDarkMode={setDark} />}
-          {view === 'add-recipe' && <AddRecipe token={token} onRecipeAdded={() => { goToDashboard(); fetchRecipes(); }} />}
-          {view === 'dashboard' && <Dashboard recipes={recipes} user={user} favoritedIds={favoritedIds} onOpen={openRecipe} onToggleFavorite={handleToggleFavorite} />}
-          {view === 'explore' && <Explore recipes={recipes} favoritedIds={favoritedIds} onOpen={openRecipe} onToggleFavorite={handleToggleFavorite} />}
-          {view === 'favorites' && <Favorites favoriteRecipes={favoriteRecipes} favoritedIds={favoritedIds} onOpen={openRecipe} onToggleFavorite={handleToggleFavorite} />}
-          {view === 'notifications' && <Notifications visibleNotifs={visibleNotifs} onClear={handleClearNotifications} onDismiss={handleDismissNotification} onOpen={openRecipe} />}
-        </div>
-      </main>
-
-      <MobileNav
-        isOpen={mobileMenuOpen}
-        onClose={() => setMobileMenuOpen(false)}
-        view={view}
-        onNavigate={(v) => { setView(v); setMobileMenuOpen(false); }}
-        onHome={() => { goToDashboard(); setMobileMenuOpen(false); }}
-        user={user}
-        isAdmin={isAdmin}
-        notifCount={visibleNotifs.length}
-        onLogout={() => { logout(); setMobileMenuOpen(false); }}
       />
 
       {selectedRecipe && (

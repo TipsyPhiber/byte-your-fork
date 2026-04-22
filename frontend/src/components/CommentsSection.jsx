@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { API_BASE } from '../config';
+import { X } from 'lucide-react';
 
 const BASE = `${API_BASE}/api`;
 
@@ -46,20 +47,33 @@ export default function CommentsSection({ recipeId, token, user, isAdmin }) {
         />
         <button type="submit" className="primary-button" style={{ padding: '10px 20px', whiteSpace: 'nowrap' }}>Post</button>
       </form>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        {comments.length === 0 && <p style={{ color: 'var(--text-light)', margin: 0 }}>No comments yet — be the first!</p>}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        {comments.length === 0 && (
+          <p style={{ color: 'var(--text-2)', margin: 0, fontSize: '0.9rem' }}>No comments yet — be the first!</p>
+        )}
         {comments.map(c => (
-          <div key={c.id} style={{ background: '#f9fafb', borderRadius: '10px', padding: '12px 16px', border: '1px solid #eee' }}>
+          <div key={c.id} style={{
+            background: 'var(--page-bg)', borderRadius: '10px',
+            padding: '12px 16px', border: '1px solid var(--border)',
+          }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
-                <span style={{ fontWeight: 700, color: 'var(--dark-blue)', fontSize: '0.9rem' }}>{c.username || c.first_name}</span>
-                <span style={{ color: 'var(--text-light)', fontSize: '0.8rem', marginLeft: '10px' }}>{new Date(c.created_at).toLocaleDateString()}</span>
+                <span style={{ fontWeight: 700, color: 'var(--text-1)', fontSize: '0.875rem' }}>{c.username || c.first_name}</span>
+                <span style={{ color: 'var(--text-3)', fontSize: '0.78rem', marginLeft: '10px' }}>
+                  {new Date(c.created_at).toLocaleDateString()}
+                </span>
               </div>
               {(user?.id === c.user_id || isAdmin) && (
-                <button onClick={() => handleDelete(c.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', fontSize: '0.8rem' }}>✕</button>
+                <button
+                  onClick={() => handleDelete(c.id)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', display: 'flex', alignItems: 'center', padding: '2px', borderRadius: '4px', transition: 'color 0.15s' }}
+                  title="Delete comment"
+                >
+                  <X size={14} />
+                </button>
               )}
             </div>
-            <p style={{ margin: '6px 0 0', color: '#374151', fontSize: '0.95rem' }}>{c.text}</p>
+            <p style={{ margin: '6px 0 0', color: 'var(--text-1)', fontSize: '0.9rem', lineHeight: 1.5 }}>{c.text}</p>
           </div>
         ))}
       </div>

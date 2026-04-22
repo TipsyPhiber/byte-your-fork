@@ -5,6 +5,7 @@ import CookMode from '../CookMode';
 import EditRecipeForm from './EditRecipeForm';
 import RatingSection from './RatingSection';
 import CommentsSection from './CommentsSection';
+import { X, Clock, Tag, Eye, Heart, ChefHat, Pencil, Trash2, AlertTriangle } from 'lucide-react';
 
 const FALLBACK_IMG = 'https://images.unsplash.com/photo-1495195129352-aec325a55b65?auto=format&fit=crop&w=600&q=80';
 const BASE = `${API_BASE}/api`;
@@ -12,6 +13,7 @@ const BASE = `${API_BASE}/api`;
 export default function RecipeModal({ recipe, token, user, isAdmin, favoritedIds, onClose, onToggleFavorite, onDelete, onRatingUpdate, onRecipeSaved }) {
   const [cookMode, setCookMode] = useState(false);
   const [editForm, setEditForm] = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const handleSaveEdit = async () => {
     try {
@@ -25,60 +27,76 @@ export default function RecipeModal({ recipe, token, user, isAdmin, favoritedIds
     } catch { alert('Save failed.'); }
   };
 
-  if (cookMode) {
-    return <CookMode recipe={recipe} token={token} onExit={() => setCookMode(false)} />;
-  }
+  if (cookMode) return <CookMode recipe={recipe} token={token} onExit={() => setCookMode(false)} />;
+
+  const isFavorited = favoritedIds.has(recipe.id);
 
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={e => e.stopPropagation()}>
-        <button className="modal-close-btn" onClick={onClose}>✕</button>
+        <button className="modal-close-btn" onClick={onClose} aria-label="Close">
+          <X size={16} />
+        </button>
 
         {editForm ? (
-          <EditRecipeForm
-            editForm={editForm}
-            setEditForm={setEditForm}
-            onSave={handleSaveEdit}
-            onCancel={() => setEditForm(null)}
-          />
+          <EditRecipeForm editForm={editForm} setEditForm={setEditForm} onSave={handleSaveEdit} onCancel={() => setEditForm(null)} />
         ) : (
           <>
-            <img className="modal-hero" src={recipe.image_url || FALLBACK_IMG} onError={e => e.target.src = FALLBACK_IMG} alt="" />
+            <img className="modal-hero" src={recipe.image_url || FALLBACK_IMG} onError={e => e.target.src = FALLBACK_IMG} alt={recipe.title} />
             <div className="modal-scroll">
-              <div className="modal-title-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
-                <h1 className="modal-recipe-title" style={{ fontSize: '2.5rem', color: 'var(--dark-blue)', margin: 0 }}>{recipe.title}</h1>
-                <div style={{ display: 'flex', gap: '8px', flexShrink: 0, marginLeft: '16px', paddingTop: '8px', alignItems: 'center' }}>
+
+              {/* Delete confirmation banner */}
+              {confirmDelete && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', background: 'var(--danger-dim)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '10px', padding: '12px 16px', marginBottom: '20px' }}>
+                  <AlertTriangle size={18} color="var(--danger)" style={{ flexShrink: 0 }} />
+                  <span style={{ flex: 1, fontSize: '0.875rem', fontWeight: 600, color: 'var(--danger)' }}>Delete this recipe? This cannot be undone.</span>
+                  <button onClick={() => onDelete(recipe.id)} style={{ background: 'var(--danger)', color: 'white', border: 'none', padding: '6px 14px', borderRadius: '6px', cursor: 'pointer', fontWeight: 700, fontSize: '0.8rem', fontFamily: 'inherit' }}>Delete</button>
+                  <button onClick={() => setConfirmDelete(false)} style={{ background: 'none', border: '1px solid var(--border)', color: 'var(--text-2)', padding: '6px 14px', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, fontSize: '0.8rem', fontFamily: 'inherit' }}>Cancel</button>
+                </div>
+              )}
+
+              <div className="modal-title-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                <h1 className="modal-recipe-title" style={{ fontSize: '2.2rem', fontWeight: 800, color: 'var(--text-1)', margin: 0, lineHeight: 1.15, letterSpacing: '-0.02em' }}>
+                  {recipe.title}
+                </h1>
+                <div style={{ display: 'flex', gap: '8px', flexShrink: 0, marginLeft: '20px', paddingTop: '6px', alignItems: 'center' }}>
                   <button
-                    className={`heart-btn ${favoritedIds.has(recipe.id) ? 'favorited' : ''}`}
-                    style={{ position: 'static', fontSize: '1.5rem', background: 'none', border: 'none', cursor: 'pointer' }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: isFavorited ? 'var(--danger)' : 'var(--text-2)', display: 'flex', alignItems: 'center', padding: '6px', borderRadius: '8px', transition: 'color 0.2s' }}
                     onClick={e => onToggleFavorite(e, recipe.id)}
-                    title={favoritedIds.has(recipe.id) ? 'Unfavorite' : 'Save to Favorites'}
+                    title={isFavorited ? 'Unfavorite' : 'Save to Favorites'}
                   >
-                    {favoritedIds.has(recipe.id) ? '🍴' : '🍴'}
+                    <Heart size={22} fill={isFavorited ? 'currentColor' : 'none'} />
                   </button>
-                  <button className="primary-button" style={{ padding: '10px 20px', fontSize: '0.9rem' }} onClick={() => setCookMode(true)}>
-                    👨‍🍳 Cook Mode
+                  <button className="primary-button" style={{ padding: '9px 18px', fontSize: '0.875rem' }} onClick={() => setCookMode(true)}>
+                    <ChefHat size={16} /> Cook Mode
                   </button>
                   {isAdmin && (
                     <>
-                      <button className="tag-pill" onClick={() => setEditForm({ title: recipe.title, ttc: recipe.ttc, ingredients: recipe.ingredients || [], steps: recipe.steps || [] })}>Edit</button>
-                      <button className="tag-pill" style={{ background: '#fee2e2', color: '#b91c1c', borderColor: '#fecaca' }} onClick={() => onDelete(recipe.id)}>Delete</button>
+                      <button className="tag-pill" style={{ display: 'flex', alignItems: 'center', gap: '5px' }} onClick={() => setEditForm({ title: recipe.title, ttc: recipe.ttc, ingredients: recipe.ingredients || [], steps: recipe.steps || [] })}>
+                        <Pencil size={13} /> Edit
+                      </button>
+                      <button
+                        className="tag-pill"
+                        style={{ background: confirmDelete ? 'var(--danger)' : 'var(--danger-dim)', color: confirmDelete ? 'white' : 'var(--danger)', borderColor: 'rgba(239,68,68,0.3)', display: 'flex', alignItems: 'center', gap: '5px' }}
+                        onClick={() => setConfirmDelete(true)}
+                      >
+                        <Trash2 size={13} /> Delete
+                      </button>
                     </>
                   )}
                 </div>
               </div>
 
               <div className="recipe-meta">
-                <span>⏱️ {recipe.ttc} mins</span>
-                <span>👨‍🍳 Admin</span>
-                {recipe.tag && <span>🍽️ {recipe.tag}</span>}
-                {recipe.view_count > 0 && <span>👁️ {recipe.view_count} {parseInt(recipe.view_count) === 1 ? 'view' : 'views'}</span>}
+                <span><Clock size={14} /> {recipe.ttc} mins</span>
+                {recipe.tag && <span><Tag size={14} /> {recipe.tag}</span>}
+                {recipe.view_count > 0 && <span><Eye size={14} /> {recipe.view_count} {parseInt(recipe.view_count) === 1 ? 'view' : 'views'}</span>}
               </div>
 
               <div className="recipe-detail-cols" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '40px' }}>
                 <div>
                   <h3 className="recipe-section-title">Ingredients</h3>
-                  <ul style={{ paddingLeft: '20px', lineHeight: '2' }}>
+                  <ul style={{ paddingLeft: '20px', lineHeight: '2', color: 'var(--text-1)' }}>
                     {recipe.ingredients?.map((ing, i) => (
                       <li key={i}><strong>{ing.amount}</strong> {ing.name}</li>
                     ))}
@@ -86,8 +104,8 @@ export default function RecipeModal({ recipe, token, user, isAdmin, favoritedIds
                 </div>
                 <div>
                   <h3 className="recipe-section-title">Instructions</h3>
-                  <ol style={{ paddingLeft: '20px', lineHeight: '1.8' }}>
-                    {recipe.steps?.map((s, i) => <li key={i} style={{ marginBottom: '15px' }}>{s}</li>)}
+                  <ol style={{ paddingLeft: '20px', lineHeight: '1.85', color: 'var(--text-1)' }}>
+                    {recipe.steps?.map((s, i) => <li key={i} style={{ marginBottom: '14px' }}>{s}</li>)}
                   </ol>
                 </div>
               </div>
