@@ -4,7 +4,7 @@ import { API_BASE } from './config';
 
 const ALL_CUISINES = ['Italian', 'Asian', 'Mediterranean', 'Indian', 'Southwest', 'Mexican', 'American', 'Thai', 'Middle Eastern', 'Cajun'];
 
-const Settings = ({ user, setUser, token, onPreferencesChange }) => {
+const Settings = ({ user, setUser, token, onPreferencesChange, darkMode, setDarkMode }) => {
   const [username, setUsername] = useState(user?.username || '');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -140,8 +140,20 @@ const Settings = ({ user, setUser, token, onPreferencesChange }) => {
     <div style={{ maxWidth: '600px', margin: '0 auto' }}>
       <h2 style={{ color: 'var(--dark-blue)', marginBottom: '30px' }}>Account Settings</h2>
 
+      {/* Appearance */}
+      <div className="settings-card" style={{ padding: '30px', borderRadius: '15px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)', marginBottom: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <h3 style={{ marginTop: 0, marginBottom: '4px' }}>Appearance</h3>
+          <p style={{ margin: 0, color: 'var(--text-light)', fontSize: '0.9rem' }}>Switch between light and dark theme</p>
+        </div>
+        <label className="dark-toggle">
+          <input type="checkbox" checked={!!darkMode} onChange={e => setDarkMode(e.target.checked)} />
+          <span className="dark-toggle-track" />
+        </label>
+      </div>
+
       {/* Profile Picture */}
-      <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '15px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)', marginBottom: '30px' }}>
+      <div className="settings-card" style={{ padding: '30px', borderRadius: '15px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)', marginBottom: '30px' }}>
         <h3 style={{ marginTop: 0, marginBottom: '20px' }}>Profile Picture</h3>
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
           <div style={{ width: 72, height: 72, borderRadius: '50%', overflow: 'hidden', border: '3px solid var(--primary-blue)', flexShrink: 0 }}>
@@ -170,7 +182,7 @@ const Settings = ({ user, setUser, token, onPreferencesChange }) => {
       {message && <p style={{ color: '#059669', backgroundColor: '#ecfdf5', padding: '10px', borderRadius: '6px' }}>{message}</p>}
       {error && <p className="error-message">{error}</p>}
 
-      <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '15px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)', marginBottom: '30px' }}>
+      <div className="settings-card" style={{ padding: '30px', borderRadius: '15px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)', marginBottom: '30px' }}>
         <h3 style={{ marginTop: 0, marginBottom: '20px' }}>Update Username</h3>
         <form onSubmit={handleUpdateUsername} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
           <input 
@@ -186,7 +198,7 @@ const Settings = ({ user, setUser, token, onPreferencesChange }) => {
         </form>
       </div>
 
-      <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '15px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)', marginBottom: '30px' }}>
+      <div className="settings-card" style={{ padding: '30px', borderRadius: '15px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)', marginBottom: '30px' }}>
         <h3 style={{ marginTop: 0, marginBottom: '8px' }}>Cuisine Preferences</h3>
         <p style={{ margin: '0 0 16px', color: 'var(--text-light)', fontSize: '0.9rem' }}>Your dashboard will default to showing these cuisines first.</p>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '16px' }}>
@@ -206,7 +218,7 @@ const Settings = ({ user, setUser, token, onPreferencesChange }) => {
         </div>
       </div>
 
-      <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '15px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)', marginBottom: '30px' }}>
+      <div className="settings-card" style={{ padding: '30px', borderRadius: '15px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)', marginBottom: '30px' }}>
         <h3 style={{ marginTop: 0, marginBottom: '20px' }}>Change Email</h3>
         {emailMessage && <p style={{ color: '#059669', background: '#ecfdf5', padding: '10px', borderRadius: '6px' }}>{emailMessage}</p>}
         {emailError && <p className="error-message">{emailError}</p>}
@@ -217,7 +229,7 @@ const Settings = ({ user, setUser, token, onPreferencesChange }) => {
         </form>
       </div>
 
-      <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '15px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)' }}>
+      <div className="settings-card" style={{ padding: '30px', borderRadius: '15px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)' }}>
         <h3 style={{ marginTop: 0, marginBottom: '20px' }}>Change Password</h3>
         <form onSubmit={handleUpdatePassword} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
           <input 

@@ -1,10 +1,11 @@
 /* eslint-disable react-hooks/exhaustive-deps */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import './App.css';
 import { API_BASE } from './config';
 
 import { useAuth } from './hooks/useAuth';
+import { useDarkMode } from './hooks/useDarkMode';
 import { useRecipes } from './hooks/useRecipes';
 import { useFavorites } from './hooks/useFavorites';
 import { useNotifications } from './hooks/useNotifications';
@@ -30,6 +31,7 @@ const BASE = `${API_BASE}/api`;
 
 function App() {
   const { token, user, setUser, login, logout } = useAuth();
+  const [dark, setDark] = useDarkMode();
   const [view, setView] = useState(() => token ? 'dashboard' : 'landing');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -65,6 +67,17 @@ function App() {
 
   const goToDashboard = useCallback(() => setView('dashboard'), []);
   const isAdmin = user?.role === 'admin';
+
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const userMenuRef = useRef(null);
+  useEffect(() => {
+    if (!userMenuOpen) return;
+    const handler = (e) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target)) setUserMenuOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [userMenuOpen]);
 
   // Coordinator: toggleFavorite needs the full recipe list for optimistic add
   const handleToggleFavorite = useCallback((e, recipeId) => {
@@ -129,11 +142,21 @@ function App() {
           <div style={{ flex: 1 }}>
             {view === 'explore' && <SearchBar onSelect={openRecipe} />}
           </div>
-          <div onClick={() => setView('settings')} style={{ cursor: 'pointer', fontWeight: 600 }}>@{user?.username} ▾</div>
+          <div className="user-menu-wrapper" ref={userMenuRef}>
+            <button className="user-menu-trigger" onClick={() => setUserMenuOpen(o => !o)}>
+              @{user?.username} ▾
+            </button>
+            {userMenuOpen && (
+              <div className="user-menu-dropdown">
+                <button onClick={() => { setView('settings'); setUserMenuOpen(false); }}>Settings</button>
+                <button className="signout-btn" onClick={() => { logout(); setUserMenuOpen(false); }}>Sign Out</button>
+              </div>
+            )}
+          </div>
         </header>
 
         <div className="content-area">
-          {view === 'settings' && <Settings user={user} setUser={setUser} token={token} onPreferencesChange={() => {}} />}
+          {view === 'settings' && <Settings user={user} setUser={setUser} token={token} onPreferencesChange={() => {}} darkMode={dark} setDarkMode={setDark} />}
           {view === 'add-recipe' && <AddRecipe token={token} onRecipeAdded={() => { goToDashboard(); fetchRecipes(); }} />}
           {view === 'dashboard' && <Dashboard recipes={recipes} user={user} favoritedIds={favoritedIds} onOpen={openRecipe} onToggleFavorite={handleToggleFavorite} />}
           {view === 'explore' && <Explore recipes={recipes} favoritedIds={favoritedIds} onOpen={openRecipe} onToggleFavorite={handleToggleFavorite} />}
