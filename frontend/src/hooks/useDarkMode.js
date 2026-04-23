@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 export function useDarkMode() {
   const [dark, setDark] = useState(() => {
     const stored = localStorage.getItem('theme');
-    const isDark = stored ? stored === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const isDark = stored ? stored === 'dark' : false;
     document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
     return isDark;
   });

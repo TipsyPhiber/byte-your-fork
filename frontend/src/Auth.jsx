@@ -86,18 +86,18 @@ function Auth({ setToken, initialTab, onHome, onAbout }) {
       <div style={{ position: 'absolute', width: 400, height: 400, borderRadius: '50%', background: 'rgba(6,182,212,0.08)', top: '50%', left: '60%', filter: 'blur(80px)', animation: 'blob3 26s ease-in-out infinite', willChange: 'transform' }} />
 
       {/* Top bar */}
-      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 32px' }}>
-        <img src={logoImg} alt="Byte Your Fork" style={{ height: '2.2rem', cursor: 'pointer', opacity: 0.9 }} onClick={onHome} />
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 68, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 40px' }}>
+        <img src={logoImg} alt="Byte Your Fork" style={{ height: '2.6rem', cursor: 'pointer' }} onClick={onHome} />
         <div style={{ display: 'flex', gap: '8px' }}>
-          <button onClick={onAbout} style={{ background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.7)', border: '1px solid rgba(255,255,255,0.12)', padding: '7px 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '0.82rem', fontFamily: 'inherit' }}>About</button>
-          <button onClick={onHome} style={{ background: 'none', color: 'rgba(255,255,255,0.55)', border: 'none', padding: '7px 12px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '0.82rem', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: '5px' }}>
+          <button onClick={onHome} style={{ background: 'rgba(255,255,255,0.12)', color: 'white', border: '1px solid rgba(255,255,255,0.22)', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '0.875rem', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: '5px' }}>
             <ArrowLeft size={14} /> Back
           </button>
+          <button onClick={onAbout} style={{ background: 'rgba(255,255,255,0.15)', color: 'white', border: '1px solid rgba(255,255,255,0.25)', padding: '8px 18px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '0.875rem', fontFamily: 'inherit' }}>About</button>
         </div>
       </div>
 
       {/* Card */}
-      <div style={{
+      <div className="auth-light-card" style={{
         background: 'rgba(255,255,255,0.97)',
         borderRadius: '20px', padding: '40px 36px',
         width: '100%', maxWidth: '420px',

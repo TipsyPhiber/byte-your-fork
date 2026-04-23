@@ -562,6 +562,32 @@ body {
 
 
 /* ─────────────────────────────────────────
+   Landing Feature Cards
+───────────────────────────────────────── */
+.landing-feature-card {
+  position: relative;
+  overflow: hidden;
+}
+.landing-feature-card::after {
+  content: '';
+  position: absolute;
+  top: 0; left: -100%;
+  width: 55%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.055), transparent);
+  transform: skewX(-15deg);
+  transition: left 0.65s ease;
+  pointer-events: none;
+}
+.landing-feature-card:hover::after {
+  left: 135%;
+}
+
+@keyframes iconFloat {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50%       { transform: translateY(-3px) scale(1.05); }
+}
+
+/* ─────────────────────────────────────────
    Responsive
 ───────────────────────────────────────── */
 @media (max-width: 768px) {
@@ -632,6 +658,24 @@ body {
 
 [data-theme="dark"] .auth-form input { background: var(--page-bg); }
 [data-theme="dark"] .auth-form input:focus { background: var(--surface); }
+
+/* Auth page always renders on a white card — lock inputs to light regardless of theme */
+[data-theme="dark"] .auth-light-card .auth-form input {
+  background: #f4f4f8;
+  color: #0f0f14;
+  border-color: #e6e6ed;
+}
+[data-theme="dark"] .auth-light-card .auth-form input:focus {
+  background: #ffffff;
+  color: #0f0f14;
+}
+[data-theme="dark"] .auth-light-card .toggle-text { color: #6b6b80; }
+[data-theme="dark"] .auth-light-card .toggle-link { color: #3b82f6; }
+[data-theme="dark"] .auth-light-card .error-message {
+  background: rgba(239,68,68,0.10);
+  color: #ef4444;
+  border-color: rgba(239,68,68,0.25);
+}
 [data-theme="dark"] .edit-input { background: var(--page-bg); }
 [data-theme="dark"] .edit-input:focus { background: var(--surface); }
 [data-theme="dark"] .dark-toggle-track::after { background: #8080a0; }
