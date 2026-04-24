@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import axios from 'axios';
-import { API_BASE } from '../config';
+import { API_BASE, normalizeRowImage } from '../config';
 
 const BASE = `${API_BASE}/api`;
 
@@ -12,7 +12,7 @@ export function useNotifications(token) {
     if (!token) return;
     try {
       const res = await axios.get(`${BASE}/notifications`, { headers: { Authorization: `Bearer ${token}` } });
-      setNotifications(res.data);
+      setNotifications(res.data.map(normalizeRowImage));
     } catch { /* ignore */ }
   }, [token]);
 

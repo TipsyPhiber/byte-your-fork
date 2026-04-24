@@ -1,5 +1,6 @@
 /* eslint-disable react-hooks/exhaustive-deps */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback } from 'react';
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import './App.css';
 import { API_BASE } from './config';
@@ -30,15 +31,11 @@ const BASE = `${API_BASE}/api`;
 function App() {
   const { token, user, setUser, login, logout } = useAuth();
   const [dark, setDark] = useDarkMode();
-  const [view, setView] = useState(() => token ? 'dashboard' : 'landing');
+  const navigate = useNavigate();
 
   const { recipes, selectedRecipe, fetchRecipes, openRecipe, closeRecipe, updateRecipeRating } = useRecipes(token);
   const { favoritedIds, favoriteRecipes, fetchFavorites, toggleFavorite } = useFavorites(token);
   const { visibleNotifs, setClearedAt, fetchNotifications, handleClearNotifications, handleDismissNotification } = useNotifications(token);
-
-  useEffect(() => {
-    if (!token) setView('landing');
-  }, [token]);
 
   useEffect(() => {
     if (!token) return;
@@ -60,9 +57,6 @@ function App() {
     return () => { mounted = false; };
   }, [token]);
 
-  const goToDashboard = useCallback(() => setView('dashboard'), []);
-  const isAdmin = user?.role === 'admin';
-
   const handleToggleFavorite = useCallback((e, recipeId) => {
     toggleFavorite(e, recipeId, recipes);
   }, [toggleFavorite, recipes]);
@@ -76,31 +70,37 @@ function App() {
     } catch { /* silently fail — modal already shows error state */ }
   }, [token, closeRecipe, fetchRecipes, fetchFavorites]);
 
-  // Auth / pre-login screens
+  const handleLogout = useCallback(() => { logout(); navigate('/'); }, [logout, navigate]);
+  const isAdmin = user?.role === 'admin';
+
+  // Reset-password link from email (?reset_token=...) — pre-empts auth flow
   if (!token) {
-    const urlParams = new URLSearchParams(window.location.search);
-    const resetToken = urlParams.get('reset_token');
+    const resetToken = new URLSearchParams(window.location.search).get('reset_token');
     if (resetToken) {
       return (
         <ResetPasswordForm
           token={resetToken}
           onDone={() => {
             window.history.replaceState({}, '', window.location.pathname);
-            setView('login');
+            navigate('/login');
           }}
         />
       );
     }
 
     const authProps = {
-      setToken: (t) => { login(t); setView('dashboard'); },
-      onHome: () => setView('landing'),
-      onAbout: () => setView('about'),
+      setToken: (t) => { login(t); navigate('/dashboard'); },
+      onHome: () => navigate('/'),
+      onAbout: () => navigate('/about'),
     };
-    if (view === 'login')  return <Auth {...authProps} initialTab="login" />;
-    if (view === 'signup') return <Auth {...authProps} initialTab="signup" />;
-    if (view === 'about')  return <About onHome={() => setView('landing')} />;
-    return <LandingPage onLogin={() => setView('login')} onSignUp={() => setView('signup')} onAbout={() => setView('about')} />;
+    return (
+      <Routes>
+        <Route path="/login" element={<Auth {...authProps} initialTab="login" />} />
+        <Route path="/signup" element={<Auth {...authProps} initialTab="signup" />} />
+        <Route path="/about" element={<About onHome={() => navigate('/')} />} />
+        <Route path="*" element={<LandingPage onLogin={() => navigate('/login')} onSignUp={() => navigate('/signup')} onAbout={() => navigate('/about')} />} />
+      </Routes>
+    );
   }
 
   return (
@@ -112,23 +112,23 @@ function App() {
       </div>
       <main className="main-content">
         <div className="content-area">
-          {view === 'dashboard'     && <Dashboard recipes={recipes} user={user} favoritedIds={favoritedIds} onOpen={openRecipe} onToggleFavorite={handleToggleFavorite} />}
-          {view === 'explore'       && <Explore recipes={recipes} favoritedIds={favoritedIds} onOpen={openRecipe} onToggleFavorite={handleToggleFavorite} />}
-          {view === 'favorites'     && <Favorites favoriteRecipes={favoriteRecipes} favoritedIds={favoritedIds} onOpen={openRecipe} onToggleFavorite={handleToggleFavorite} />}
-          {view === 'notifications' && <Notifications visibleNotifs={visibleNotifs} onClear={handleClearNotifications} onDismiss={handleDismissNotification} onOpen={openRecipe} />}
-          {view === 'settings'      && <Settings user={user} setUser={setUser} token={token} onPreferencesChange={() => {}} darkMode={dark} setDarkMode={setDark} />}
-          {view === 'add-recipe'    && <AddRecipe token={token} onRecipeAdded={() => { goToDashboard(); fetchRecipes(); }} />}
+          <Routes>
+            <Route path="/dashboard" element={<Dashboard recipes={recipes} user={user} favoritedIds={favoritedIds} onOpen={openRecipe} onToggleFavorite={handleToggleFavorite} />} />
+            <Route path="/explore" element={<Explore recipes={recipes} favoritedIds={favoritedIds} onOpen={openRecipe} onToggleFavorite={handleToggleFavorite} />} />
+            <Route path="/favorites" element={<Favorites favoriteRecipes={favoriteRecipes} favoritedIds={favoritedIds} onOpen={openRecipe} onToggleFavorite={handleToggleFavorite} />} />
+            <Route path="/notifications" element={<Notifications visibleNotifs={visibleNotifs} onClear={handleClearNotifications} onDismiss={handleDismissNotification} onOpen={openRecipe} />} />
+            <Route path="/settings" element={<Settings user={user} setUser={setUser} token={token} onPreferencesChange={() => {}} darkMode={dark} setDarkMode={setDark} />} />
+            <Route path="/add-recipe" element={<AddRecipe token={token} onRecipeAdded={() => { navigate('/dashboard'); fetchRecipes(); }} />} />
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          </Routes>
         </div>
       </main>
 
       <BottomNav
-        view={view}
-        onNavigate={setView}
-        onHome={goToDashboard}
         user={user}
         isAdmin={isAdmin}
         notifCount={visibleNotifs.length}
-        onLogout={logout}
+        onLogout={handleLogout}
       />
 
       {selectedRecipe && (

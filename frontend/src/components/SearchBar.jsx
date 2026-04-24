@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { API_BASE } from '../config';
+import { API_BASE, normalizeRowImage } from '../config';
 
 const FALLBACK_IMG = 'https://images.unsplash.com/photo-1495195129352-aec325a55b65?auto=format&fit=crop&w=600&q=80';
 
@@ -14,7 +14,7 @@ export default function SearchBar({ onSelect }) {
       const timer = setTimeout(async () => {
         try {
           const res = await axios.get(`${API_BASE}/api/search?query=${encodeURIComponent(query.trim())}`);
-          setSuggestions(res.data);
+          setSuggestions(res.data.map(normalizeRowImage));
           setShowSuggestions(true);
         } catch { /* ignore */ }
       }, 300);

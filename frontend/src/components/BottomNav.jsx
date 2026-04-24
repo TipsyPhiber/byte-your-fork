@@ -1,7 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Home, Search, Bookmark, Bell, Plus, Settings as SettingsIcon, LogOut } from 'lucide-react';
 
-export default function BottomNav({ view, onNavigate, onHome, user, isAdmin, notifCount, onLogout }) {
+export default function BottomNav({ user, isAdmin, notifCount, onLogout }) {
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
 
@@ -14,33 +17,34 @@ export default function BottomNav({ view, onNavigate, onHome, user, isAdmin, not
     return () => document.removeEventListener('mousedown', handler);
   }, [menuOpen]);
 
-  const nav = (to, fn) => { fn ? fn() : onNavigate(to); setMenuOpen(false); };
+  const go = (to) => { navigate(to); setMenuOpen(false); };
+  const isActive = (path) => pathname === path;
 
   return (
     <nav className="bottom-nav">
-      <button className={`bottom-nav-item ${view === 'dashboard' ? 'active' : ''}`} onClick={() => nav(null, onHome)}>
+      <button className={`bottom-nav-item ${isActive('/dashboard') ? 'active' : ''}`} onClick={() => go('/dashboard')}>
         <Home size={21} />
         <span>Home</span>
       </button>
 
-      <button className={`bottom-nav-item ${view === 'explore' ? 'active' : ''}`} onClick={() => nav('explore')}>
+      <button className={`bottom-nav-item ${isActive('/explore') ? 'active' : ''}`} onClick={() => go('/explore')}>
         <Search size={21} />
         <span>Explore</span>
       </button>
 
-      <button className={`bottom-nav-item ${view === 'favorites' ? 'active' : ''}`} onClick={() => nav('favorites')}>
+      <button className={`bottom-nav-item ${isActive('/favorites') ? 'active' : ''}`} onClick={() => go('/favorites')}>
         <Bookmark size={21} />
         <span>Saved</span>
       </button>
 
-      <button className={`bottom-nav-item ${view === 'notifications' ? 'active' : ''}`} onClick={() => nav('notifications')} style={{ position: 'relative' }}>
+      <button className={`bottom-nav-item ${isActive('/notifications') ? 'active' : ''}`} onClick={() => go('/notifications')} style={{ position: 'relative' }}>
         <Bell size={21} />
         {notifCount > 0 && <span className="notif-badge">{notifCount}</span>}
         <span>Updates</span>
       </button>
 
       {isAdmin && (
-        <button className={`bottom-nav-item ${view === 'add-recipe' ? 'active' : ''}`} onClick={() => nav('add-recipe')}>
+        <button className={`bottom-nav-item ${isActive('/add-recipe') ? 'active' : ''}`} onClick={() => go('/add-recipe')}>
           <Plus size={21} />
           <span>Add</span>
         </button>
@@ -49,7 +53,7 @@ export default function BottomNav({ view, onNavigate, onHome, user, isAdmin, not
       {/* Profile / user menu */}
       <div className="bottom-nav-profile" ref={menuRef}>
         <button
-          className={`bottom-nav-item ${view === 'settings' ? 'active' : ''}`}
+          className={`bottom-nav-item ${isActive('/settings') ? 'active' : ''}`}
           onClick={() => setMenuOpen(o => !o)}
         >
           <div className="bottom-nav-avatar">
@@ -71,7 +75,7 @@ export default function BottomNav({ view, onNavigate, onHome, user, isAdmin, not
                 @{user?.username}
               </span>
             </div>
-            <button onClick={() => { onNavigate('settings'); setMenuOpen(false); }}>
+            <button onClick={() => go('/settings')}>
               <SettingsIcon size={15} /> Settings
             </button>
             <button className="signout-btn" onClick={() => { onLogout(); setMenuOpen(false); }}>

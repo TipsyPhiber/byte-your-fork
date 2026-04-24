@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import axios from 'axios';
-import { API_BASE } from '../config';
+import { API_BASE, normalizeRowImage } from '../config';
 
 const BASE = `${API_BASE}/api`;
 
@@ -16,7 +16,7 @@ export function useFavorites(token) {
         axios.get(`${BASE}/favorites`, { headers: { Authorization: `Bearer ${token}` } }),
       ]);
       setFavoritedIds(new Set(idsRes.data));
-      setFavoriteRecipes(recipesRes.data);
+      setFavoriteRecipes(recipesRes.data.map(normalizeRowImage));
     } catch { /* ignore */ }
   }, [token]);
 
