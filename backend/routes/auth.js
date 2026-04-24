@@ -16,7 +16,22 @@ const authLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-router.post('/signup', async (req, res) => {
+// Per-account limiters (layered on top of authLimiter): cap attempts/sends
+// against a specific user even if the attacker rotates source IPs.
+const perUser = ({ keyPrefix, getKey }) => rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  message: { error: 'Too many attempts for this account. Please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => !getKey(req),
+  keyGenerator: (req) => `${keyPrefix}:${getKey(req)}`,
+});
+
+const byUserId = perUser({ keyPrefix: 'uid', getKey: (req) => req.body.userId });
+const byEmail  = perUser({ keyPrefix: 'email', getKey: (req) => req.body.email?.trim().toLowerCase() });
+
+router.post('/signup', authLimiter, async (req, res) => {
   const { first_name, surname, username, email, password } = req.body;
   if (password && password.length > 15) return res.status(400).json({ error: 'Password must not exceed 15 characters.' });
   if (username && username.length > 15) return res.status(400).json({ error: 'Username must not exceed 15 characters.' });
@@ -57,7 +72,7 @@ router.post('/signup', async (req, res) => {
   }
 });
 
-router.post('/verify-email', async (req, res) => {
+router.post('/verify-email', authLimiter, byUserId, async (req, res) => {
   const { userId, code } = req.body;
   if (!userId || !code) return res.status(400).json({ error: 'userId and code are required' });
   try {
@@ -78,7 +93,7 @@ router.post('/verify-email', async (req, res) => {
   }
 });
 
-router.post('/resend-verification', async (req, res) => {
+router.post('/resend-verification', authLimiter, byUserId, async (req, res) => {
   const { userId } = req.body;
   if (!userId) return res.status(400).json({ error: 'userId is required' });
   try {
@@ -102,7 +117,7 @@ router.post('/resend-verification', async (req, res) => {
   }
 });
 
-router.post('/forgot-password', authLimiter, async (req, res) => {
+router.post('/forgot-password', authLimiter, byEmail, async (req, res) => {
   const { email } = req.body;
   if (!email) return res.status(400).json({ error: 'Email is required' });
   try {
