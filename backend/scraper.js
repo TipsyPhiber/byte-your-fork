@@ -1,6 +1,7 @@
 const puppeteer = require('puppeteer');
 const pool = require('./db');
 const axios = require('axios');
+const { toTitleCase } = require('./utils/titleCase');
 
 async function fetchImageBuffer(url) {
   try {
@@ -11,8 +12,6 @@ async function fetchImageBuffer(url) {
     return null;
   }
 }
-
-const toTitleCase = str => str.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
 
 async function saveRecipe(r) {
   r.title = toTitleCase(r.title);

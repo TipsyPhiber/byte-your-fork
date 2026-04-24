@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../db');
 const { authenticateToken } = require('../middleware/auth');
+const { toTitleCase } = require('../utils/titleCase');
 
 const parseTtc = (raw) => {
   const n = Number(raw);
@@ -32,7 +33,7 @@ router.post('/', authenticateToken, async (req, res) => {
   const { ingredients, steps, imageUrl } = req.body;
   const ttc = parseTtc(req.body.ttc);
   if (ttc === null) return res.status(400).json({ error: 'ttc must be an integer between 1 and 1440 minutes' });
-  const title = req.body.title?.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+  const title = toTitleCase(req.body.title);
   const userId = req.user.id;
 
   const adminResult = await pool.query('SELECT 1 FROM admins WHERE user_id = $1', [userId]);
@@ -159,7 +160,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
   const { ingredients, steps } = req.body;
   const ttc = parseTtc(req.body.ttc);
   if (ttc === null) return res.status(400).json({ error: 'ttc must be an integer between 1 and 1440 minutes' });
-  const title = req.body.title?.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+  const title = toTitleCase(req.body.title);
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
