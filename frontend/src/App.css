@@ -486,6 +486,8 @@ body {
   border: 1px solid var(--border);
   border-radius: 14px;
   box-shadow: var(--shadow-xs);
+  padding: 30px;
+  margin-bottom: 30px;
 }
 
 .dark-toggle { position: relative; display: inline-block; width: 48px; height: 26px; cursor: pointer; flex-shrink: 0; }
