@@ -6,7 +6,6 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "migrate": "node migrate.js",
-    "import:spoonacular": "node importSpoonacular.js",
     "scrape": "node scraper.js",
     "retag": "node retagDietary.js"
   },
