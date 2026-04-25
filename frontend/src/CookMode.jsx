@@ -1,11 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { cleanSteps } from './utils/cleanRecipe';
 
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-
-const STEP_NOISE = /^(instructions|directions|method|steps|preparation|how to make|procedure)\.?$/i;
-function cleanSteps(steps = []) {
-  return steps.filter(s => s && !STEP_NOISE.test(s.trim()));
-}
 
 const WORD_NUMS = { one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10 };
 
@@ -15,6 +11,8 @@ export default function CookMode({ recipe, onExit }) {
   const [transcript, setTranscript]   = useState('');
   const [response, setResponse]       = useState('');
   const [elapsed, setElapsed]         = useState(0);
+  const [voices, setVoices]           = useState([]);
+  const [voiceURI, setVoiceURI]       = useState(() => localStorage.getItem('cm_voiceURI') || '');
 
   const recognizerRef  = useRef(null);
   const mountedRef     = useRef(true);
@@ -48,6 +46,18 @@ export default function CookMode({ recipe, onExit }) {
     return () => clearInterval(id);
   }, []);
 
+  useEffect(() => {
+    const loadVoices = () => {
+      const list = window.speechSynthesis.getVoices().filter(v => v.lang.startsWith('en'));
+      setVoices(list);
+    };
+    loadVoices();
+    window.speechSynthesis.addEventListener('voiceschanged', loadVoices);
+    return () => window.speechSynthesis.removeEventListener('voiceschanged', loadVoices);
+  }, []);
+
+  useEffect(() => { localStorage.setItem('cm_voiceURI', voiceURI); }, [voiceURI]);
+
   const formatTime = (secs) => {
     const h = Math.floor(secs / 3600);
     const m = Math.floor((secs % 3600) / 60).toString().padStart(2, '0');
@@ -61,14 +71,15 @@ export default function CookMode({ recipe, onExit }) {
     const utt = new SpeechSynthesisUtterance(text);
     utt.rate = 0.88;
     utt.pitch = 1;
-    const voices = window.speechSynthesis.getVoices();
-    const preferred =
-      voices.find(v => v.name.toLowerCase().includes('google') && v.lang.startsWith('en')) ||
-      voices.find(v => v.lang === 'en-US' && !v.name.toLowerCase().includes('espeak')) ||
-      voices.find(v => v.lang.startsWith('en'));
-    if (preferred) utt.voice = preferred;
+    const all = window.speechSynthesis.getVoices();
+    const chosen =
+      (voiceURI && all.find(v => v.voiceURI === voiceURI)) ||
+      all.find(v => v.name.toLowerCase().includes('google') && v.lang.startsWith('en')) ||
+      all.find(v => v.lang === 'en-US' && !v.name.toLowerCase().includes('espeak')) ||
+      all.find(v => v.lang.startsWith('en'));
+    if (chosen) utt.voice = chosen;
     window.speechSynthesis.speak(utt);
-  }, []);
+  }, [voiceURI]);
 
   const readStep = useCallback((idx) => {
     if (!steps[idx]) return;
@@ -254,6 +265,35 @@ export default function CookMode({ recipe, onExit }) {
             )}
           </div>
         )}
+
+        <details className="cook-mode-ingredients">
+          <summary>Voice settings</summary>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 10 }}>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: '0.85rem', color: '#64748b' }}>
+              Voice
+              <select
+                value={voiceURI}
+                onChange={e => setVoiceURI(e.target.value)}
+                style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-1)' }}
+              >
+                <option value="">Default (auto-select)</option>
+                {voices.map(v => (
+                  <option key={v.voiceURI} value={v.voiceURI}>{v.name} ({v.lang})</option>
+                ))}
+              </select>
+            </label>
+            <button
+              className="cook-mode-nav-btn"
+              onClick={() => speak('Hello! This is how I will sound while reading your recipe.')}
+              style={{ alignSelf: 'flex-start' }}
+            >
+              Test voice
+            </button>
+            {voices.length === 0 && (
+              <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>No voices loaded yet — they appear after the browser registers them.</span>
+            )}
+          </div>
+        </details>
 
         <details className="cook-mode-ingredients">
           <summary>Voice commands</summary>

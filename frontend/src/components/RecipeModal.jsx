@@ -6,6 +6,7 @@ import EditRecipeForm from './EditRecipeForm';
 import RatingSection from './RatingSection';
 import CommentsSection from './CommentsSection';
 import { X, Clock, Tag, Eye, Heart, ChefHat, Pencil, Trash2, AlertTriangle } from 'lucide-react';
+import { cleanSteps } from '../utils/cleanRecipe';
 
 const FALLBACK_IMG = 'https://images.unsplash.com/photo-1495195129352-aec325a55b65?auto=format&fit=crop&w=600&q=80';
 const BASE = `${API_BASE}/api`;
@@ -105,7 +106,7 @@ export default function RecipeModal({ recipe, token, user, isAdmin, favoritedIds
                 <div>
                   <h3 className="recipe-section-title">Instructions</h3>
                   <ol style={{ paddingLeft: '20px', lineHeight: '1.85', color: 'var(--text-1)' }}>
-                    {recipe.steps?.map((s, i) => <li key={i} style={{ marginBottom: '14px' }}>{s}</li>)}
+                    {cleanSteps(recipe.steps).map((s, i) => <li key={i} style={{ marginBottom: '14px' }}>{s}</li>)}
                   </ol>
                 </div>
               </div>
