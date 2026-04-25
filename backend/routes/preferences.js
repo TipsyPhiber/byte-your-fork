@@ -22,6 +22,21 @@ router.put('/preferences', authenticateToken, async (req, res) => {
   }
 });
 
+const VALID_FLAGS = new Set(['dairy_free', 'gluten_free', 'nut_free', 'egg_free', 'shellfish_free', 'vegetarian', 'vegan']);
+
+router.put('/dietary-restrictions', authenticateToken, async (req, res) => {
+  const { restrictions } = req.body;
+  if (!Array.isArray(restrictions)) return res.status(400).json({ error: 'restrictions must be an array' });
+  const cleaned = Array.from(new Set(restrictions.filter(r => VALID_FLAGS.has(r))));
+  try {
+    await pool.query('UPDATE users SET dietary_restrictions = $1 WHERE id = $2', [cleaned, req.user.id]);
+    res.json({ restrictions: cleaned });
+  } catch (err) {
+    console.error('Update dietary restrictions failed:', err.message);
+    res.status(500).json({ error: 'Server Error' });
+  }
+});
+
 router.put('/clear-notifications', authenticateToken, async (req, res) => {
   try {
     await pool.query(`

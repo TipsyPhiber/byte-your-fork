@@ -20,11 +20,13 @@ import AddRecipe from './AddRecipe';
 import BottomNav from './components/BottomNav';
 import RecipeModal from './components/RecipeModal';
 import ResetPasswordForm from './components/ResetPasswordForm';
+import ToastContainer from './components/ToastContainer';
 
 import Dashboard from './pages/Dashboard';
 import Explore from './pages/Explore';
 import Favorites from './pages/Favorites';
 import Notifications from './pages/Notifications';
+import ShoppingList from './pages/ShoppingList';
 
 const BASE = `${API_BASE}/api`;
 
@@ -113,10 +115,11 @@ function App() {
       <main className="main-content">
         <div className="content-area">
           <Routes>
-            <Route path="/dashboard" element={<Dashboard recipes={recipes} user={user} favoritedIds={favoritedIds} onOpen={openRecipe} onToggleFavorite={handleToggleFavorite} />} />
-            <Route path="/explore" element={<Explore recipes={recipes} favoritedIds={favoritedIds} onOpen={openRecipe} onToggleFavorite={handleToggleFavorite} />} />
-            <Route path="/favorites" element={<Favorites favoriteRecipes={favoriteRecipes} favoritedIds={favoritedIds} onOpen={openRecipe} onToggleFavorite={handleToggleFavorite} />} />
+            <Route path="/dashboard" element={<Dashboard recipes={recipes} user={user} favoritedIds={favoritedIds} onOpen={openRecipe} onToggleFavorite={handleToggleFavorite} token={token} />} />
+            <Route path="/explore" element={<Explore recipes={recipes} favoritedIds={favoritedIds} onOpen={openRecipe} onToggleFavorite={handleToggleFavorite} token={token} user={user} />} />
+            <Route path="/favorites" element={<Favorites favoriteRecipes={favoriteRecipes} favoritedIds={favoritedIds} onOpen={openRecipe} onToggleFavorite={handleToggleFavorite} token={token} />} />
             <Route path="/notifications" element={<Notifications visibleNotifs={visibleNotifs} onClear={handleClearNotifications} onDismiss={handleDismissNotification} onOpen={openRecipe} />} />
+            <Route path="/shopping-list" element={<ShoppingList token={token} />} />
             <Route path="/settings" element={<Settings user={user} setUser={setUser} token={token} onPreferencesChange={() => {}} darkMode={dark} setDarkMode={setDark} />} />
             <Route path="/add-recipe" element={<AddRecipe token={token} onRecipeAdded={() => { navigate('/dashboard'); fetchRecipes(); }} />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
@@ -130,6 +133,8 @@ function App() {
         notifCount={visibleNotifs.length}
         onLogout={handleLogout}
       />
+
+      <ToastContainer />
 
       {selectedRecipe && (
         <RecipeModal

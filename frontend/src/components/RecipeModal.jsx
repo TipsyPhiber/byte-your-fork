@@ -5,8 +5,15 @@ import CookMode from '../CookMode';
 import EditRecipeForm from './EditRecipeForm';
 import RatingSection from './RatingSection';
 import CommentsSection from './CommentsSection';
-import { X, Clock, Tag, Eye, Heart, ChefHat, Pencil, Trash2, AlertTriangle } from 'lucide-react';
+import { X, Clock, Tag, Eye, Heart, ChefHat, Pencil, Trash2, AlertTriangle, Minus, Plus, RotateCcw, Users, ShoppingCart, Check, Printer } from 'lucide-react';
 import { cleanSteps } from '../utils/cleanRecipe';
+import { scaleAmount } from '../utils/scaleAmount';
+import { showToast } from '../utils/toast';
+import { DIETARY_LABELS } from '../utils/dietaryFilter';
+
+const BASE_SERVINGS = 4;
+const MIN_SERVINGS = 1;
+const MAX_SERVINGS = 32;
 
 const FALLBACK_IMG = 'https://images.unsplash.com/photo-1495195129352-aec325a55b65?auto=format&fit=crop&w=600&q=80';
 const BASE = `${API_BASE}/api`;
@@ -15,6 +22,44 @@ export default function RecipeModal({ recipe, token, user, isAdmin, favoritedIds
   const [cookMode, setCookMode] = useState(false);
   const [editForm, setEditForm] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [servings, setServings] = useState(BASE_SERVINGS);
+  const [addToListState, setAddToListState] = useState('idle'); // idle | adding | added | error
+
+  const scale = servings / BASE_SERVINGS;
+  const adjustServings = (delta) => setServings(s => Math.max(MIN_SERVINGS, Math.min(MAX_SERVINGS, s + delta)));
+
+  const handleAddAllToList = async () => {
+    if (!recipe.ingredients || recipe.ingredients.length === 0 || addToListState === 'adding') return;
+    setAddToListState('adding');
+    try {
+      const items = recipe.ingredients.map(ing => ({
+        ingredient_name: ing.name,
+        amount: scaleAmount(ing.amount, scale),
+      }));
+      const res = await axios.post(
+        `${BASE}/shopping-list/bulk`,
+        { items, recipe_id: recipe.id },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setAddToListState('added');
+      setTimeout(() => setAddToListState('idle'), 2000);
+      const count = res.data?.items?.length ?? items.length;
+      showToast({
+        kind: 'success',
+        message: `Added ${count} ingredient${count === 1 ? '' : 's'} from ${recipe.title}`,
+      });
+    } catch (err) {
+      setAddToListState('error');
+      setTimeout(() => setAddToListState('idle'), 2000);
+      const serverMsg = err.response?.data?.error;
+      const status = err.response?.status;
+      const msg = serverMsg
+        || (status === 404 ? 'Endpoint not found (HTTP 404). Restart the backend server.'
+          : status ? `Server error ${status}.`
+          : 'Cannot reach server. Is the backend running?');
+      showToast({ kind: 'error', message: msg, duration: 7000 });
+    }
+  };
 
   const handleSaveEdit = async () => {
     try {
@@ -28,12 +73,41 @@ export default function RecipeModal({ recipe, token, user, isAdmin, favoritedIds
     } catch { alert('Save failed.'); }
   };
 
-  if (cookMode) return <CookMode recipe={recipe} token={token} onExit={() => setCookMode(false)} />;
+  if (cookMode) return <CookMode recipe={recipe} token={token} scale={scale} onExit={() => setCookMode(false)} />;
 
   const isFavorited = favoritedIds.has(recipe.id);
 
   return (
     <div className="modal-overlay" onClick={onClose}>
+      <style>{`
+        @media print {
+          @page { margin: 0.6in; }
+          body * { visibility: hidden !important; }
+          .recipe-print-sheet, .recipe-print-sheet * { visibility: visible !important; }
+          .recipe-print-sheet { position: absolute !important; left: 0 !important; top: 0 !important; width: 100% !important; padding: 24px !important; background: #fff !important; color: #000 !important; }
+          .recipe-print-sheet * { color: #000 !important; background: transparent !important; }
+        }
+        .recipe-print-sheet { display: none; }
+      `}</style>
+      <div className="recipe-print-sheet">
+        <h1 style={{ fontFamily: 'inherit', fontSize: 26, margin: '0 0 8px' }}>{recipe.title}</h1>
+        <div style={{ fontSize: 13, color: '#444', marginBottom: 20 }}>
+          {recipe.ttc} min · {servings} serving{servings === 1 ? '' : 's'}{recipe.tag ? ` · ${recipe.tag}` : ''}
+        </div>
+        <h2 style={{ fontSize: 16, margin: '0 0 8px', borderBottom: '1px solid #000', paddingBottom: 3 }}>Ingredients</h2>
+        <ul style={{ paddingLeft: 20, lineHeight: 1.7, fontSize: 13, margin: '0 0 20px' }}>
+          {recipe.ingredients?.map((ing, i) => (
+            <li key={i}>
+              {ing.amount && <strong>{scaleAmount(ing.amount, scale)} </strong>}
+              {ing.name}
+            </li>
+          ))}
+        </ul>
+        <h2 style={{ fontSize: 16, margin: '0 0 8px', borderBottom: '1px solid #000', paddingBottom: 3 }}>Instructions</h2>
+        <ol style={{ paddingLeft: 22, lineHeight: 1.6, fontSize: 13, margin: 0 }}>
+          {cleanSteps(recipe.steps).map((s, i) => <li key={i} style={{ marginBottom: 8 }}>{s}</li>)}
+        </ol>
+      </div>
       <div className="modal-content" onClick={e => e.stopPropagation()}>
         <button className="modal-close-btn" onClick={onClose} aria-label="Close">
           <X size={16} />
@@ -68,6 +142,13 @@ export default function RecipeModal({ recipe, token, user, isAdmin, favoritedIds
                   >
                     <Heart size={22} fill={isFavorited ? 'currentColor' : 'none'} />
                   </button>
+                  <button
+                    onClick={() => window.print()}
+                    title="Print recipe"
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-2)', display: 'flex', alignItems: 'center', padding: '6px', borderRadius: '8px' }}
+                  >
+                    <Printer size={20} />
+                  </button>
                   <button className="primary-button" style={{ padding: '9px 18px', fontSize: '0.875rem' }} onClick={() => setCookMode(true)}>
                     <ChefHat size={16} /> Cook Mode
                   </button>
@@ -94,14 +175,84 @@ export default function RecipeModal({ recipe, token, user, isAdmin, favoritedIds
                 {recipe.view_count > 0 && <span><Eye size={14} /> {recipe.view_count} {parseInt(recipe.view_count) === 1 ? 'view' : 'views'}</span>}
               </div>
 
+              {recipe.dietary_flags?.length > 0 && (
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', margin: '4px 0 16px' }}>
+                  {recipe.dietary_flags.map(f => (
+                    <span key={f} style={{
+                      fontSize: '0.72rem', fontWeight: 700, padding: '3px 10px',
+                      borderRadius: 999, background: 'rgba(16,185,129,0.12)', color: '#047857',
+                    }}>
+                      {DIETARY_LABELS[f] || f}
+                    </span>
+                  ))}
+                </div>
+              )}
+
               <div className="recipe-detail-cols" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '40px' }}>
                 <div>
-                  <h3 className="recipe-section-title">Ingredients</h3>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '12px', flexWrap: 'wrap' }}>
+                    <h3 className="recipe-section-title" style={{ margin: 0 }}>Ingredients</h3>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--surface-2, rgba(0,0,0,0.04))', border: '1px solid var(--border)', borderRadius: '999px', padding: '4px 6px' }}>
+                      <Users size={14} style={{ color: 'var(--text-2)', marginLeft: '4px' }} />
+                      <button
+                        onClick={() => adjustServings(-1)}
+                        disabled={servings <= MIN_SERVINGS}
+                        aria-label="Decrease servings"
+                        style={{ background: 'none', border: 'none', cursor: servings <= MIN_SERVINGS ? 'not-allowed' : 'pointer', color: 'var(--text-1)', display: 'flex', alignItems: 'center', padding: '4px', borderRadius: '999px', opacity: servings <= MIN_SERVINGS ? 0.4 : 1 }}
+                      >
+                        <Minus size={14} />
+                      </button>
+                      <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-1)', minWidth: '70px', textAlign: 'center' }}>
+                        {servings} {servings === 1 ? 'serving' : 'servings'}
+                      </span>
+                      <button
+                        onClick={() => adjustServings(1)}
+                        disabled={servings >= MAX_SERVINGS}
+                        aria-label="Increase servings"
+                        style={{ background: 'none', border: 'none', cursor: servings >= MAX_SERVINGS ? 'not-allowed' : 'pointer', color: 'var(--text-1)', display: 'flex', alignItems: 'center', padding: '4px', borderRadius: '999px', opacity: servings >= MAX_SERVINGS ? 0.4 : 1 }}
+                      >
+                        <Plus size={14} />
+                      </button>
+                      {servings !== BASE_SERVINGS && (
+                        <button
+                          onClick={() => setServings(BASE_SERVINGS)}
+                          aria-label="Reset servings"
+                          title="Reset"
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-2)', display: 'flex', alignItems: 'center', padding: '4px', borderRadius: '999px' }}
+                        >
+                          <RotateCcw size={13} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
                   <ul style={{ paddingLeft: '20px', lineHeight: '2', color: 'var(--text-1)' }}>
                     {recipe.ingredients?.map((ing, i) => (
-                      <li key={i}><strong>{ing.amount}</strong> {ing.name}</li>
+                      <li key={i}><strong>{scaleAmount(ing.amount, scale)}</strong> {ing.name}</li>
                     ))}
                   </ul>
+                  {recipe.ingredients?.length > 0 && (
+                    <button
+                      onClick={handleAddAllToList}
+                      disabled={addToListState === 'adding'}
+                      style={{
+                        marginTop: 12,
+                        display: 'inline-flex', alignItems: 'center', gap: 8,
+                        background: addToListState === 'added' ? 'var(--accent, #3b82f6)' : 'var(--surface-2, rgba(0,0,0,0.04))',
+                        color: addToListState === 'added' ? 'white' : 'var(--text-1)',
+                        border: '1px solid var(--border)',
+                        padding: '8px 14px', borderRadius: 8,
+                        cursor: addToListState === 'adding' ? 'wait' : 'pointer',
+                        fontSize: '0.85rem', fontWeight: 600, fontFamily: 'inherit',
+                        transition: 'background 0.2s, color 0.2s'
+                      }}
+                    >
+                      {addToListState === 'added' ? <Check size={15} /> : <ShoppingCart size={15} />}
+                      {addToListState === 'adding' ? 'Adding…' :
+                       addToListState === 'added' ? 'Added to list' :
+                       addToListState === 'error' ? 'Failed — try again' :
+                       'Add to shopping list'}
+                    </button>
+                  )}
                 </div>
                 <div>
                   <h3 className="recipe-section-title">Instructions</h3>

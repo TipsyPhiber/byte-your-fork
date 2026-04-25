@@ -4,7 +4,11 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "migrate": "node migrate.js",
+    "import:spoonacular": "node importSpoonacular.js",
+    "scrape": "node scraper.js",
+    "retag": "node retagDietary.js"
   },
   "keywords": [],
   "author": "",
@@ -15,6 +19,7 @@
     "@google/generative-ai": "^0.24.1",
     "axios": "^1.15.0",
     "bcrypt": "^6.0.0",
+    "cheerio": "^1.2.0",
     "cors": "^2.8.6",
     "dotenv": "^17.4.1",
     "express": "^5.2.1",
@@ -25,8 +30,5 @@
     "nodemailer": "^8.0.5",
     "pdf-parse": "^2.4.5",
     "pg": "^8.20.0"
-  },
-  "devDependencies": {
-    "puppeteer": "^24.40.0"
   }
 }

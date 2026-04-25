@@ -9,7 +9,7 @@ const SORT_OPTIONS = [
   { value: 'time',   label: 'Quickest' },
 ];
 
-export default function Favorites({ favoriteRecipes, favoritedIds, onOpen, onToggleFavorite }) {
+export default function Favorites({ favoriteRecipes, favoritedIds, onOpen, onToggleFavorite, token }) {
   const [sortBy, setSortBy] = useState('rating');
   const [filterTag, setFilterTag] = useState('all');
 
@@ -90,7 +90,7 @@ export default function Favorites({ favoriteRecipes, favoritedIds, onOpen, onTog
           <p style={{ margin: 0 }}>No favorites in this category yet.</p>
         </div>
       ) : (
-        <RecipeGrid list={visible} favoritedIds={favoritedIds} onOpen={onOpen} onToggleFavorite={onToggleFavorite} />
+        <RecipeGrid list={visible} favoritedIds={favoritedIds} onOpen={onOpen} onToggleFavorite={onToggleFavorite} token={token} />
       )}
     </div>
   );

@@ -14,6 +14,7 @@ router.get('/', async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT r.*, i.url as image_url, t.name as tag,
+        r.dietary_flags,
         ROUND(AVG(rt.rating)::numeric, 1) as avg_rating,
         COUNT(rt.rating) as rating_count
       FROM recipes r

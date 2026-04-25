@@ -63,4 +63,37 @@ async function sendPasswordResetEmail(to, resetUrl) {
   });
 }
 
-module.exports = { sendVerificationEmail, sendPasswordResetEmail };
+async function sendShoppingListEmail(to, firstName, items) {
+  const rows = items.map(it => `
+    <tr>
+      <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; font-weight: 600; color: #1e40af; width: 100px;">${escapeHtml(it.amount || '')}</td>
+      <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; color: #111827;">${escapeHtml(it.ingredient_name)}${it.recipe_title ? `<div style="font-size: 11px; color: #9ca3af;">from ${escapeHtml(it.recipe_title)}</div>` : ''}</td>
+    </tr>
+  `).join('');
+
+  await transporter.sendMail({
+    from: `"Byte Your Fork" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
+    to,
+    subject: `Your shopping list (${items.length} item${items.length === 1 ? '' : 's'})`,
+    html: `
+      <div style="font-family: Inter, sans-serif; max-width: 560px; margin: 0 auto; padding: 40px 20px; color: #111827;">
+        <div style="text-align: center; margin-bottom: 24px;">
+          <h1 style="color: #1e40af; font-size: 24px; margin: 0;">Byte Your Fork</h1>
+        </div>
+        <h2 style="color: #1e40af;">${escapeHtml(firstName) || 'Hey'}, here's your shopping list</h2>
+        <table style="width: 100%; border-collapse: collapse; background: #f9fafb; border-radius: 12px; overflow: hidden; margin-top: 16px;">
+          <tbody>${rows}</tbody>
+        </table>
+        <p style="color: #9ca3af; font-size: 12px; margin-top: 24px; text-align: center;">Sent from Byte Your Fork</p>
+      </div>
+    `,
+  });
+}
+
+function escapeHtml(s) {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+module.exports = { sendVerificationEmail, sendPasswordResetEmail, sendShoppingListEmail };

@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { cleanSteps } from './utils/cleanRecipe';
+import { scaleAmount } from './utils/scaleAmount';
 
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
 const WORD_NUMS = { one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10 };
 
-export default function CookMode({ recipe, onExit }) {
+export default function CookMode({ recipe, onExit, scale = 1 }) {
   const [currentStep, setCurrentStep] = useState(0);
   const [listening, setListening]     = useState(false);
   const [transcript, setTranscript]   = useState('');
@@ -140,7 +141,7 @@ export default function CookMode({ recipe, onExit }) {
       return;
     }
     if (/\b(ingredients?|what do i need|what('s| is) in this)\b/.test(lower)) {
-      const list = recipe.ingredients?.map(i => `${i.amount} ${i.name}`).join(', ') || 'No ingredients listed.';
+      const list = recipe.ingredients?.map(i => `${scaleAmount(i.amount, scale)} ${i.name}`).join(', ') || 'No ingredients listed.';
       const text = `You will need: ${list}`;
       speak(text);
       setResponse(text);
@@ -164,7 +165,7 @@ export default function CookMode({ recipe, onExit }) {
     const fallback = 'Try saying: next, back, repeat, ingredients, or go to step 3.';
     speak(fallback);
     setResponse(fallback);
-  }, [stepCount, speak, readStep, recipe.ingredients]);
+  }, [stepCount, speak, readStep, recipe.ingredients, scale]);
 
   const startListening = useCallback(() => {
     if (!SpeechRecognition) return;
@@ -320,7 +321,7 @@ export default function CookMode({ recipe, onExit }) {
           <summary>Ingredients reference</summary>
           <ul>
             {recipe.ingredients?.map((ing, i) => (
-              <li key={i}><strong>{ing.amount}</strong> {ing.name}</li>
+              <li key={i}><strong>{scaleAmount(ing.amount, scale)}</strong> {ing.name}</li>
             ))}
           </ul>
         </details>

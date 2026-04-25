@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Home, Search, Bookmark, Bell, Plus, Settings as SettingsIcon, LogOut } from 'lucide-react';
+import { Home, Search, Bookmark, Bell, Plus, Settings as SettingsIcon, LogOut, ShoppingCart } from 'lucide-react';
 
 export default function BottomNav({ user, isAdmin, notifCount, onLogout }) {
   const navigate = useNavigate();
@@ -35,6 +35,11 @@ export default function BottomNav({ user, isAdmin, notifCount, onLogout }) {
       <button className={`bottom-nav-item ${isActive('/favorites') ? 'active' : ''}`} onClick={() => go('/favorites')}>
         <Bookmark size={21} />
         <span>Saved</span>
+      </button>
+
+      <button className={`bottom-nav-item ${isActive('/shopping-list') ? 'active' : ''}`} onClick={() => go('/shopping-list')}>
+        <ShoppingCart size={21} />
+        <span>List</span>
       </button>
 
       <button className={`bottom-nav-item ${isActive('/notifications') ? 'active' : ''}`} onClick={() => go('/notifications')} style={{ position: 'relative' }}>

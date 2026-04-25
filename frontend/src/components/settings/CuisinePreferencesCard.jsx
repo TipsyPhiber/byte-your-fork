@@ -2,7 +2,28 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { API_BASE } from '../../config';
 
-const ALL_CUISINES = ['Italian', 'Asian', 'Mediterranean', 'Indian', 'Southwest', 'Mexican', 'American', 'Thai', 'Middle Eastern', 'Cajun'];
+const TAG_GROUPS = [
+  {
+    label: 'Cuisines',
+    tags: [
+      'American', 'Asian', 'British', 'Cajun', 'Chinese', 'French', 'Greek',
+      'Indian', 'Italian', 'Japanese', 'Korean', 'Mediterranean', 'Mexican',
+      'Middle Eastern', 'Southwest', 'Spanish', 'Thai', 'Turkish', 'Vietnamese',
+    ],
+  },
+  {
+    label: 'Meal types',
+    tags: ['Breakfast', 'Pasta', 'Salad', 'Soup', 'Slow Cooker', 'Dessert'],
+  },
+  {
+    label: 'Dietary',
+    tags: ['Vegan', 'Vegetarian'],
+  },
+  {
+    label: 'Protein',
+    tags: ['Beef', 'Chicken'],
+  },
+];
 
 const CuisinePreferencesCard = ({ user, setUser, token, onPreferencesChange }) => {
   const [preferences, setPreferences] = useState(user?.preferences || []);
@@ -32,19 +53,35 @@ const CuisinePreferencesCard = ({ user, setUser, token, onPreferencesChange }) =
 
   return (
     <div className="settings-card">
-      <h3 style={{ marginTop: 0, marginBottom: '8px' }}>Cuisine Preferences</h3>
-      <p style={{ margin: '0 0 16px', color: 'var(--text-light)', fontSize: '0.9rem' }}>Your dashboard will default to showing these cuisines first.</p>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '16px' }}>
-        {ALL_CUISINES.map(tag => (
-          <button
-            key={tag}
-            onClick={() => toggle(tag)}
-            className={`tag-pill ${preferences.includes(tag) ? 'active' : ''}`}
-          >
-            {tag}
-          </button>
+      <h3 style={{ marginTop: 0, marginBottom: '8px' }}>Recipe Preferences</h3>
+      <p style={{ margin: '0 0 16px', color: 'var(--text-light)', fontSize: '0.9rem' }}>
+        Your dashboard will default to showing recipes tagged with these first.
+      </p>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '16px' }}>
+        {TAG_GROUPS.map(group => (
+          <div key={group.label}>
+            <div style={{
+              fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.08em',
+              color: 'var(--text-3)', fontWeight: 700, marginBottom: '8px',
+            }}>
+              {group.label}
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+              {group.tags.map(tag => (
+                <button
+                  key={tag}
+                  onClick={() => toggle(tag)}
+                  className={`tag-pill ${preferences.includes(tag) ? 'active' : ''}`}
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
+          </div>
         ))}
       </div>
+
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
         <button className="primary-button" onClick={handleSave}>Save Preferences</button>
         {message && <span style={{ color: '#059669', fontSize: '0.9rem' }}>{message}</span>}
