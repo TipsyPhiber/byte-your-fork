@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../db');
 const { authenticateToken } = require('../middleware/auth');
+const { logEvent } = require('../utils/events');
 
 // Get all favorited recipes for the logged-in user
 router.get('/', authenticateToken, async (req, res) => {
@@ -38,6 +39,7 @@ router.post('/:recipeId', authenticateToken, async (req, res) => {
       'INSERT INTO favorites (user_id, recipe_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
       [req.user.id, req.params.recipeId]
     );
+    await logEvent(req.user.id, 'recipe_favorited', req.params.recipeId);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: 'Save Failed' });

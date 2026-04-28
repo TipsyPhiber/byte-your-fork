@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../db');
 const { authenticateToken } = require('../middleware/auth');
+const { logEvent } = require('../utils/events');
 
 const fetchAverage = async (recipeId) => {
   const res = await pool.query(
@@ -34,6 +35,7 @@ router.post('/:recipeId', authenticateToken, async (req, res) => {
       'INSERT INTO ratings (user_id, recipe_id, rating) VALUES ($1, $2, $3) ON CONFLICT (user_id, recipe_id) DO UPDATE SET rating = $3',
       [req.user.id, req.params.recipeId, rating]
     );
+    await logEvent(req.user.id, 'recipe_rated', req.params.recipeId);
     const avg = await fetchAverage(req.params.recipeId);
     res.json({ ...avg, userRating: rating });
   } catch (err) {

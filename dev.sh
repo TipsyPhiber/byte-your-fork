@@ -6,11 +6,12 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 cleanup() {
+  trap - EXIT INT TERM
   echo
   echo "Shutting down..."
   kill 0 2>/dev/null || true
 }
-trap cleanup EXIT INT TERM
+trap cleanup INT TERM
 
 (cd backend  && node server.js   2>&1 | sed -u 's/^/[backend]  /') &
 (cd frontend && npm run dev      2>&1 | sed -u 's/^/[frontend] /') &

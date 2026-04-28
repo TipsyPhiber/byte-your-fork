@@ -3,6 +3,7 @@ const router = express.Router();
 const pool = require('../db');
 const { authenticateToken } = require('../middleware/auth');
 const { toTitleCase } = require('../utils/titleCase');
+const { logEvent } = require('../utils/events');
 
 const parseTtc = (raw) => {
   const n = Number(raw);
@@ -93,6 +94,7 @@ router.post('/', authenticateToken, async (req, res) => {
 router.post('/:id/view', authenticateToken, async (req, res) => {
   try {
     await pool.query('INSERT INTO views (recipe_id, user_id) VALUES ($1, $2)', [req.params.id, req.user.id]);
+    await logEvent(req.user.id, 'recipe_viewed', req.params.id);
     res.json({ ok: true });
   } catch { res.json({ ok: true }); }
 });
