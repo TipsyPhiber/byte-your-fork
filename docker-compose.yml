@@ -1,0 +1,19 @@
+services:
+  backend:
+    image: ${IMAGE_REPO}-backend:${IMAGE_TAG:-latest}
+    container_name: byteyourfork-backend
+    restart: unless-stopped
+    env_file: ./backend/.env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "127.0.0.1:5000:5000"
+    volumes:
+      - ./backend/uploads:/app/uploads
+
+  frontend:
+    image: ${IMAGE_REPO}-frontend:${IMAGE_TAG:-latest}
+    container_name: byteyourfork-frontend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:80"
