@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import axios from 'axios';
 import { API_BASE } from '../../config';
 
@@ -13,12 +13,15 @@ const RESTRICTIONS = [
 ];
 
 export default function DietaryRestrictionsCard({ user, setUser, token }) {
-  const [selected, setSelected] = useState(user?.dietary_restrictions || []);
+  const userRestrictions = user?.dietary_restrictions;
+  const [selected, setSelected] = useState(userRestrictions || []);
+  const [lastSyncedRestrictions, setLastSyncedRestrictions] = useState(userRestrictions);
   const [message, setMessage] = useState('');
 
-  useEffect(() => {
-    setSelected(user?.dietary_restrictions || []);
-  }, [user?.dietary_restrictions]);
+  if (userRestrictions !== lastSyncedRestrictions) {
+    setLastSyncedRestrictions(userRestrictions);
+    setSelected(userRestrictions || []);
+  }
 
   const toggle = (flag) => {
     setSelected(prev => prev.includes(flag) ? prev.filter(f => f !== flag) : [...prev, flag]);

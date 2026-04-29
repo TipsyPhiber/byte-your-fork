@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import axios from 'axios';
 import { API_BASE } from '../../config';
 
@@ -26,12 +26,15 @@ const TAG_GROUPS = [
 ];
 
 const CuisinePreferencesCard = ({ user, setUser, token, onPreferencesChange }) => {
-  const [preferences, setPreferences] = useState(user?.preferences || []);
+  const userPrefs = user?.preferences;
+  const [preferences, setPreferences] = useState(userPrefs || []);
+  const [lastSyncedPrefs, setLastSyncedPrefs] = useState(userPrefs);
   const [message, setMessage] = useState('');
 
-  useEffect(() => {
-    setPreferences(user?.preferences || []);
-  }, [user?.preferences]);
+  if (userPrefs !== lastSyncedPrefs) {
+    setLastSyncedPrefs(userPrefs);
+    setPreferences(userPrefs || []);
+  }
 
   const toggle = (tag) => {
     setPreferences(prev =>

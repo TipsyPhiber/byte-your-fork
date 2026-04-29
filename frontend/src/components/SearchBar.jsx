@@ -9,21 +9,19 @@ export default function SearchBar({ onSelect }) {
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
+  const queryReady = query.trim().length >= 2;
+
   useEffect(() => {
-    if (query.trim().length >= 2) {
-      const timer = setTimeout(async () => {
-        try {
-          const res = await axios.get(`${API_BASE}/api/search?query=${encodeURIComponent(query.trim())}`);
-          setSuggestions(res.data.map(normalizeRowImage));
-          setShowSuggestions(true);
-        } catch { /* ignore */ }
-      }, 300);
-      return () => clearTimeout(timer);
-    } else {
-      setSuggestions([]);
-      setShowSuggestions(false);
-    }
-  }, [query]);
+    if (!queryReady) return;
+    const timer = setTimeout(async () => {
+      try {
+        const res = await axios.get(`${API_BASE}/api/search?query=${encodeURIComponent(query.trim())}`);
+        setSuggestions(res.data.map(normalizeRowImage));
+        setShowSuggestions(true);
+      } catch { /* ignore */ }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [query, queryReady]);
 
   return (
     <div className="search-container">
@@ -36,7 +34,7 @@ export default function SearchBar({ onSelect }) {
         onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
         placeholder="Search recipes..."
       />
-      {showSuggestions && suggestions.length > 0 && (
+      {queryReady && showSuggestions && suggestions.length > 0 && (
         <div className="search-suggestions">
           {suggestions.map(s => (
             <div key={s.id} className="suggestion-item" onClick={() => { onSelect(s.id); setQuery(''); setShowSuggestions(false); }}>
