@@ -33,42 +33,69 @@ const byEmail  = perUser({ keyPrefix: 'email', getKey: (req) => req.body.email?.
 
 router.post('/signup', authLimiter, async (req, res) => {
   const { first_name, surname, username, email, password } = req.body;
-  if (password && password.length > 15) return res.status(400).json({ error: 'Password must not exceed 15 characters.' });
-  if (username && username.length > 15) return res.status(400).json({ error: 'Username must not exceed 15 characters.' });
+
+  if (!username || !email || !password) {
+    return res.status(400).json({ error: 'Username, email, and password are required.' });
+  }
+  if (password.length > 15) return res.status(400).json({ error: 'Password must not exceed 15 characters.' });
+  if (username.length > 15) return res.status(400).json({ error: 'Username must not exceed 15 characters.' });
+
+  let user_id;
+  let code;
+  const client = await pool.connect();
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
     const encEmail = encrypt(email.trim().toLowerCase());
     const emailHmac = hmac(email);
-    const newUser = await pool.query(
-      'INSERT INTO users (first_name, surname, username, email, password_hash) VALUES ($1, $2, $3, $4, $5) RETURNING id',
-      [first_name, surname, username, encEmail, hashedPassword]
-    ).catch(err => {
+
+    await client.query('BEGIN');
+    try {
+      const newUser = await client.query(
+        'INSERT INTO users (first_name, surname, username, email, password_hash) VALUES ($1, $2, $3, $4, $5) RETURNING id',
+        [first_name, surname, username, encEmail, hashedPassword]
+      );
+      user_id = newUser.rows[0].id;
+
+      await client.query(
+        'INSERT INTO email_hashes (user_id, email_hmac) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET email_hmac = $2',
+        [user_id, emailHmac]
+      );
+
+      code = Math.floor(100000 + Math.random() * 900000).toString();
+      const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+      await client.query(
+        'INSERT INTO email_verification_codes (user_id, code, expires_at) VALUES ($1, $2, $3)',
+        [user_id, code, expiresAt]
+      );
+
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
       if (err.code === '23505') {
-        if (err.constraint === 'users_username_key') throw { status: 409, message: 'Username is already taken.' };
-        if (err.constraint === 'users_email_key') throw { status: 409, message: 'An account with that email already exists.' };
+        if (err.constraint === 'users_username_key') return res.status(409).json({ error: 'Username is already taken.' });
+        if (err.constraint === 'users_email_key') return res.status(409).json({ error: 'An account with that email already exists.' });
       }
       throw err;
-    });
-    const user_id = newUser.rows[0].id;
-
-    await pool.query(
-      'INSERT INTO email_hashes (user_id, email_hmac) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET email_hmac = $2',
-      [user_id, emailHmac]
-    );
-
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
-    await pool.query(
-      'INSERT INTO email_verification_codes (user_id, code, expires_at) VALUES ($1, $2, $3)',
-      [user_id, code, expiresAt]
-    );
-    await sendVerificationEmail(email, first_name, code);
-
-    res.status(201).json({ userId: user_id, message: 'Verification code sent to your email.' });
+    }
   } catch (err) {
-    if (err.status) return res.status(err.status).json({ error: err.message });
-    console.error(err);
-    res.status(500).json({ error: 'Server Error' });
+    console.error('Signup error:', err);
+    return res.status(500).json({ error: 'Server Error' });
+  } finally {
+    client.release();
+  }
+
+  // Email send happens after the DB transaction commits. A delivery failure
+  // does not roll back the account — the user can request a resend.
+  try {
+    await sendVerificationEmail(email, first_name, code);
+    return res.status(201).json({ userId: user_id, message: 'Verification code sent to your email.' });
+  } catch (err) {
+    console.error('Verification email send failed (account still created):', err.message);
+    return res.status(201).json({
+      userId: user_id,
+      message: 'Account created, but we could not send the verification email. Use "resend code" to try again.',
+      emailDeliveryFailed: true,
+    });
   }
 });
 
@@ -96,24 +123,44 @@ router.post('/verify-email', authLimiter, byUserId, async (req, res) => {
 router.post('/resend-verification', authLimiter, byUserId, async (req, res) => {
   const { userId } = req.body;
   if (!userId) return res.status(400).json({ error: 'userId is required' });
+
+  let first_name;
+  let email;
+  let code;
+  const client = await pool.connect();
   try {
-    const userResult = await pool.query('SELECT first_name, email FROM users WHERE id = $1', [userId]);
+    const userResult = await client.query('SELECT first_name, email FROM users WHERE id = $1', [userId]);
     if (userResult.rows.length === 0) return res.status(404).json({ error: 'User not found' });
 
-    const { first_name, email } = userResult.rows[0];
-    await pool.query('UPDATE email_verification_codes SET used = TRUE WHERE user_id = $1 AND used = FALSE', [userId]);
+    ({ first_name, email } = userResult.rows[0]);
 
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
-    await pool.query(
-      'INSERT INTO email_verification_codes (user_id, code, expires_at) VALUES ($1, $2, $3)',
-      [userId, code, expiresAt]
-    );
-    await sendVerificationEmail(email, first_name, code);
-    res.json({ message: 'New code sent.' });
+    await client.query('BEGIN');
+    try {
+      await client.query('UPDATE email_verification_codes SET used = TRUE WHERE user_id = $1 AND used = FALSE', [userId]);
+      code = Math.floor(100000 + Math.random() * 900000).toString();
+      const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+      await client.query(
+        'INSERT INTO email_verification_codes (user_id, code, expires_at) VALUES ($1, $2, $3)',
+        [userId, code, expiresAt]
+      );
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    }
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server Error' });
+    console.error('Resend verification error:', err);
+    return res.status(500).json({ error: 'Server Error' });
+  } finally {
+    client.release();
+  }
+
+  try {
+    await sendVerificationEmail(email, first_name, code);
+    return res.json({ message: 'New code sent.' });
+  } catch (err) {
+    console.error('Verification email send failed:', err.message);
+    return res.status(502).json({ error: 'We could not send the verification email right now. Please try again in a moment.' });
   }
 });
 
