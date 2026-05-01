@@ -1,6 +1,6 @@
 # Byte Your Fork
 
-A full-stack recipe discovery and cooking app with hands-free, AI-guided "Cook Mode." Built end-to-end by one developer — frontend, backend, database, infra, and deployment.
+A full-stack recipe discovery and cooking app with hands-free, AI-guided "Cook Mode." 
 
 **Live:** https://byteyourfork.com
 
