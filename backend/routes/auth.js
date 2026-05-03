@@ -8,12 +8,22 @@ const pool = require('../db');
 const { encrypt, hmac } = require('../crypto_helper');
 const { sendVerificationEmail, sendPasswordResetEmail } = require('../mailer');
 
+const isLocalIp = (ip) =>
+  process.env.NODE_ENV !== 'production' && (
+    ip === '::1' ||
+    ip === '127.0.0.1' ||
+    ip?.startsWith('172.') ||
+    ip?.startsWith('192.168.') ||
+    ip?.startsWith('10.')
+  );
+
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 5,
   message: { error: 'Too many attempts. Please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => isLocalIp(req.ip),
 });
 
 // Per-account limiters (layered on top of authLimiter): cap attempts/sends
@@ -24,7 +34,7 @@ const perUser = ({ keyPrefix, getKey }) => rateLimit({
   message: { error: 'Too many attempts for this account. Please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
-  skip: (req) => !getKey(req),
+  skip: (req) => isLocalIp(req.ip) || !getKey(req),
   keyGenerator: (req) => `${keyPrefix}:${getKey(req)}`,
 });
 
