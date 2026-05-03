@@ -31,9 +31,15 @@ const AddRecipe = ({ token, onRecipeAdded }) => {
     setError('');
     setSuccess(false);
     try {
+      // Ensure each step ends with terminal punctuation so the cleanSteps
+      // header-detection heuristic on read doesn't drop short user-typed steps.
+      const normalizedSteps = steps
+        .map(s => s.trim())
+        .filter(Boolean)
+        .map(s => /[.!?:]$/.test(s) ? s : `${s}.`);
       await axios.post(
         `${API_BASE}/api/recipes`,
-        { title, ttc: parseInt(ttc), imageUrl, ingredients, steps },
+        { title, ttc: parseInt(ttc), imageUrl, ingredients, steps: normalizedSteps },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setSuccess(true);

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { API_BASE } from '../config';
 import CookMode from '../CookMode';
@@ -15,7 +15,20 @@ const BASE_SERVINGS = 4;
 const MIN_SERVINGS = 1;
 const MAX_SERVINGS = 32;
 
-const FALLBACK_IMG = 'https://images.unsplash.com/photo-1495195129352-aec325a55b65?auto=format&fit=crop&w=600&q=80';
+// Inline SVG placeholder — no external CDN dependency, works offline / behind strict CSP.
+const FALLBACK_IMG = "data:image/svg+xml;utf8," + encodeURIComponent(
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400">
+    <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1f2937"/><stop offset="1" stop-color="#0b1220"/>
+    </linearGradient></defs>
+    <rect width="600" height="400" fill="url(#g)"/>
+    <g fill="none" stroke="#64748b" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M210 220c0-30 25-55 55-55s55 25 55 55c25 0 45 20 45 45 0 25-20 45-45 45H210c-25 0-45-20-45-45 0-25 20-45 45-45z"/>
+      <path d="M225 280h150"/>
+    </g>
+    <text x="300" y="345" font-family="system-ui,sans-serif" font-size="18" fill="#94a3b8" text-anchor="middle">No image</text>
+  </svg>`
+);
 const BASE = `${API_BASE}/api`;
 
 export default function RecipeModal({ recipe, token, user, isAdmin, favoritedIds, onClose, onToggleFavorite, onDelete, onRatingUpdate, onRecipeSaved }) {
@@ -24,6 +37,8 @@ export default function RecipeModal({ recipe, token, user, isAdmin, favoritedIds
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [servings, setServings] = useState(BASE_SERVINGS);
   const [addToListState, setAddToListState] = useState('idle'); // idle | adding | added | error
+  const [imgFailed, setImgFailed] = useState(false);
+  useEffect(() => { setImgFailed(false); }, [recipe.id, recipe.image_url]);
 
   const scale = servings / BASE_SERVINGS;
   const adjustServings = (delta) => setServings(s => Math.max(MIN_SERVINGS, Math.min(MAX_SERVINGS, s + delta)));
@@ -63,14 +78,28 @@ export default function RecipeModal({ recipe, token, user, isAdmin, favoritedIds
 
   const handleSaveEdit = async () => {
     try {
+      const normalizedSteps = (editForm.steps || [])
+        .map(s => (s || '').trim())
+        .filter(Boolean)
+        .map(s => /[.!?:]$/.test(s) ? s : `${s}.`);
       await axios.put(
         `${BASE}/recipes/${recipe.id}`,
-        { title: editForm.title, ttc: parseInt(editForm.ttc), ingredients: editForm.ingredients, steps: editForm.steps },
+        {
+          title: editForm.title,
+          ttc: parseInt(editForm.ttc),
+          ingredients: editForm.ingredients,
+          steps: normalizedSteps,
+          imageUrl: editForm.imageUrl ?? '',
+        },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setEditForm(null);
       onRecipeSaved?.();
-    } catch { alert('Save failed.'); }
+    } catch (err) {
+      const msg = err.response?.data?.error || err.message || 'Unknown error';
+      console.error('Save failed:', err);
+      alert(`Save failed: ${msg}`);
+    }
   };
 
   if (cookMode) return <CookMode recipe={recipe} token={token} scale={scale} onExit={() => setCookMode(false)} />;
@@ -117,7 +146,7 @@ export default function RecipeModal({ recipe, token, user, isAdmin, favoritedIds
           <EditRecipeForm editForm={editForm} setEditForm={setEditForm} onSave={handleSaveEdit} onCancel={() => setEditForm(null)} />
         ) : (
           <>
-            <img className="modal-hero" src={recipe.image_url || FALLBACK_IMG} onError={e => e.target.src = FALLBACK_IMG} alt={recipe.title} />
+            <img className="modal-hero" src={imgFailed ? FALLBACK_IMG : (recipe.image_url || FALLBACK_IMG)} onError={() => setImgFailed(true)} alt={recipe.title} />
             <div className="modal-scroll">
 
               {/* Delete confirmation banner */}
@@ -154,7 +183,7 @@ export default function RecipeModal({ recipe, token, user, isAdmin, favoritedIds
                   </button>
                   {isAdmin && (
                     <>
-                      <button className="tag-pill" style={{ display: 'flex', alignItems: 'center', gap: '5px' }} onClick={() => setEditForm({ title: recipe.title, ttc: recipe.ttc, ingredients: recipe.ingredients || [], steps: recipe.steps || [] })}>
+                      <button className="tag-pill" style={{ display: 'flex', alignItems: 'center', gap: '5px' }} onClick={() => setEditForm({ title: recipe.title, ttc: recipe.ttc, ingredients: recipe.ingredients || [], steps: recipe.steps || [], imageUrl: recipe.image_url || '' })}>
                         <Pencil size={13} /> Edit
                       </button>
                       <button

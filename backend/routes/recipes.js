@@ -85,7 +85,8 @@ router.post('/', authenticateToken, async (req, res) => {
     res.status(201).json({ recipeId });
   } catch (err) {
     await client.query('ROLLBACK');
-    res.status(500).json({ error: "Process Failed" });
+    console.error('POST /recipes failed:', err);
+    res.status(500).json({ error: err.message || "Process Failed" });
   } finally {
     client.release();
   }
@@ -160,7 +161,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
   const adminResult = await pool.query('SELECT 1 FROM admins WHERE user_id = $1', [req.user.id]);
   if (adminResult.rows.length === 0) return res.status(403).json({ error: "Admins only" });
 
-  const { ingredients, steps } = req.body;
+  const { ingredients, steps, imageUrl } = req.body;
   const ttc = parseTtc(req.body.ttc);
   if (ttc === null) return res.status(400).json({ error: 'ttc must be an integer between 1 and 1440 minutes' });
   const title = toTitleCase(req.body.title);
@@ -168,6 +169,14 @@ router.put('/:id', authenticateToken, async (req, res) => {
   try {
     await client.query('BEGIN');
     await client.query('UPDATE recipes SET title = $1, ttc = $2 WHERE id = $3', [title, ttc, id]);
+
+    if (imageUrl !== undefined) {
+      const trimmed = (imageUrl || '').trim();
+      await client.query('DELETE FROM images WHERE recipe_id = $1', [id]);
+      if (trimmed) {
+        await client.query('INSERT INTO images (recipe_id, url) VALUES ($1, $2)', [id, trimmed]);
+      }
+    }
 
     await client.query('DELETE FROM amount WHERE ingredient_id IN (SELECT id FROM ingredients WHERE recipe_id = $1)', [id]);
     await client.query('DELETE FROM ingredients WHERE recipe_id = $1', [id]);
@@ -185,7 +194,8 @@ router.put('/:id', authenticateToken, async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     await client.query('ROLLBACK');
-    res.status(500).json({ error: "Update Failed" });
+    console.error('PUT /recipes/:id failed:', err);
+    res.status(500).json({ error: err.message || "Update Failed" });
   } finally { client.release(); }
 });
 

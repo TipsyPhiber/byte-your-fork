@@ -23,7 +23,20 @@ function topFlags(flags = [], max = 3) {
 }
 
 const BASE = `${API_BASE}/api`;
-const FALLBACK_IMG = 'https://images.unsplash.com/photo-1495195129352-aec325a55b65?auto=format&fit=crop&w=600&q=80';
+// Inline SVG placeholder — no external CDN dependency, works offline / behind strict CSP.
+const FALLBACK_IMG = "data:image/svg+xml;utf8," + encodeURIComponent(
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400">
+    <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1f2937"/><stop offset="1" stop-color="#0b1220"/>
+    </linearGradient></defs>
+    <rect width="600" height="400" fill="url(#g)"/>
+    <g fill="none" stroke="#64748b" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M210 220c0-30 25-55 55-55s55 25 55 55c25 0 45 20 45 45 0 25-20 45-45 45H210c-25 0-45-20-45-45 0-25 20-45 45-45z"/>
+      <path d="M225 280h150"/>
+    </g>
+    <text x="300" y="345" font-family="system-ui,sans-serif" font-size="18" fill="#94a3b8" text-anchor="middle">No image</text>
+  </svg>`
+);
 
 function formatAddError(err) {
   const serverMsg = err.response?.data?.error;
@@ -38,6 +51,7 @@ function formatAddError(err) {
 
 export default function RecipeGrid({ list, favoritedIds, onOpen, onToggleFavorite, token }) {
   const [addState, setAddState] = useState({}); // { [recipeId]: 'adding' | 'added' | 'error' }
+  const [imgFailed, setImgFailed] = useState({}); // { [recipeId]: true } once an image errors, lock to fallback
   const navigate = useNavigate();
 
   const handleAddToList = async (e, recipeId) => {
@@ -75,8 +89,8 @@ export default function RecipeGrid({ list, favoritedIds, onOpen, onToggleFavorit
             <div style={{ position: 'relative' }}>
               <img
                 className="recipe-card-img"
-                src={r.image_url || FALLBACK_IMG}
-                onError={e => e.target.src = FALLBACK_IMG}
+                src={imgFailed[r.id] ? FALLBACK_IMG : (r.image_url || FALLBACK_IMG)}
+                onError={() => setImgFailed(s => s[r.id] ? s : { ...s, [r.id]: true })}
                 alt={r.title}
               />
               <button

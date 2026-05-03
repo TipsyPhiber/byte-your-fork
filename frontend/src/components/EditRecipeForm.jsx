@@ -8,6 +8,7 @@ export default function EditRecipeForm({ editForm, setEditForm, onSave, onCancel
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '24px' }}>
         <input className="edit-input" value={editForm.title} onChange={e => setEditForm({ ...editForm, title: e.target.value })} placeholder="Title" />
         <input className="edit-input" type="number" value={editForm.ttc} onChange={e => setEditForm({ ...editForm, ttc: e.target.value })} placeholder="Time to cook (mins)" />
+        <input className="edit-input" type="url" value={editForm.imageUrl ?? ''} onChange={e => setEditForm({ ...editForm, imageUrl: e.target.value })} placeholder="Image URL (leave blank to remove)" />
       </div>
 
       <h3 className="recipe-section-title">Ingredients</h3>
