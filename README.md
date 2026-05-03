@@ -1,18 +1,61 @@
 # Byte Your Fork
 
-A full-stack recipe discovery and cooking app with hands-free, voice-guided "Cook Mode." 
+A full-stack recipe discovery and cooking app with hands-free, voice-guided **Cook Mode**.
+
+![Landing page](Demo_Content/landing_page.png)
 
 ---
 
 ## What it does
 
-- **Discover recipes** by dish, ingredient, cuisine, or dietary tag, with results tuned to user preferences.
+- **Discover recipes** by dish, ingredient, cuisine, or dietary tag, with results tuned to your preferences.
 - **AI Cook Mode** — voice-guided, hands-free cooking powered by Google Gemini Live. Talk to it while your hands are covered in flour.
 - **Personal cookbook** — save favorites, filter by cuisine, sort by rating / name / cook time.
 - **Community ratings & comments** on every recipe.
 - **Shopping list** built from saved recipes, with multi-recipe ingredient merging.
 - **Account & profile** management — auth, email verification, password reset, profile pictures, dietary restrictions, cuisine preferences.
 - **Admin panel** for moderation, analytics, and user management.
+
+---
+
+## A tour
+
+### Home
+The signed-in dashboard — quick access to recommendations, recent activity, and the rest of the app.
+
+![Home page](Demo_Content/home_page.png)
+
+### Explore
+Browse the full catalog. Filter by cuisine and dietary tags, sort however you like.
+
+![Explore page](Demo_Content/explore_page.png)
+
+### Search
+Type-ahead search across dish names and ingredients, with instant filtering.
+
+![Search demo](Demo_Content/search_demo.png)
+
+### Favorites
+Your personal cookbook. Everything you've saved, in one place.
+
+![Favorites page](Demo_Content/favorites_page.png)
+
+### Shopping list
+Pulls ingredients from every recipe you flag and merges duplicates so you don't end up buying onions four times.
+
+![Shopping list](Demo_Content/shoppinglist_page.png)
+
+### Settings
+Manage your profile, dietary restrictions, cuisine preferences, and account security.
+
+<video src="Demo_Content/settings_demo.webm" controls width="720"></video>
+
+> If the video doesn't render in your viewer, open [`Demo_Content/settings_demo.webm`](Demo_Content/settings_demo.webm) directly.
+
+### About
+Project background and credits.
+
+![About page](Demo_Content/about_page.png)
 
 ---
 
@@ -67,6 +110,7 @@ backend/          Express API, migrations, scraper, mailer
 frontend/         React + Vite SPA
   src/pages/      Dashboard, Explore, Favorites, Notifications, ShoppingList
   src/components/ Recipe modal, search, ratings, comments, settings cards…
+Demo_Content/     Screenshots and demo clips used in this README
 docker-compose.yml
 nginx.conf
 ```
@@ -133,5 +177,3 @@ docker compose down -v       # stop + wipe the database volume
 - **Port 8080 or 5432 already in use** — stop the conflicting service or change the host port in `docker-compose.yml`.
 - **Backend keeps restarting** — usually a missing/short `JWT_SECRET` or `AES_KEY`. Check with `docker compose logs backend`.
 - **Empty recipe catalog** — the scraper is optional. Run `docker compose exec backend npm run scrape` to populate sample recipes.
-
----
