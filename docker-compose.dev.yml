@@ -1,0 +1,17 @@
+# Dev overlay: hot-reload the backend by mounting source into the container
+# and running it under `node --watch`. Use with:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d backend
+#
+# The frontend is best run on the host with `cd frontend && npm run dev`
+# (Vite has its own HMR that's much faster than rebuilding a container).
+
+services:
+  backend:
+    command: ["npm", "run", "dev"]
+    volumes:
+      # Mount source code for live edits. node_modules stays in the image
+      # (named-anonymous volume below) so host and container can use different
+      # native binaries (bcrypt etc.) without conflict.
+      - ./backend:/app
+      - /app/node_modules

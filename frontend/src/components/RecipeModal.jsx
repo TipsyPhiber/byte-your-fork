@@ -90,6 +90,8 @@ export default function RecipeModal({ recipe, token, user, isAdmin, favoritedIds
           ingredients: editForm.ingredients,
           steps: normalizedSteps,
           imageUrl: editForm.imageUrl ?? '',
+          tag: editForm.tag ?? '',
+          dietary_flags: editForm.dietary_flags ?? [],
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -183,7 +185,7 @@ export default function RecipeModal({ recipe, token, user, isAdmin, favoritedIds
                   </button>
                   {isAdmin && (
                     <>
-                      <button className="tag-pill" style={{ display: 'flex', alignItems: 'center', gap: '5px' }} onClick={() => setEditForm({ title: recipe.title, ttc: recipe.ttc, ingredients: recipe.ingredients || [], steps: recipe.steps || [], imageUrl: recipe.image_url || '' })}>
+                      <button className="tag-pill" style={{ display: 'flex', alignItems: 'center', gap: '5px' }} onClick={() => setEditForm({ title: recipe.title, ttc: recipe.ttc, ingredients: recipe.ingredients || [], steps: recipe.steps || [], imageUrl: recipe.image_url || '', tag: recipe.tag || '', dietary_flags: recipe.dietary_flags || [] })}>
                         <Pencil size={13} /> Edit
                       </button>
                       <button

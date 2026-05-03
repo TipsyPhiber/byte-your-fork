@@ -32,7 +32,7 @@ router.get('/', async (req, res) => {
 });
 
 router.post('/', authenticateToken, async (req, res) => {
-  const { ingredients, steps, imageUrl } = req.body;
+  const { ingredients, steps, imageUrl, tag, dietary_flags } = req.body;
   const ttc = parseTtc(req.body.ttc);
   if (ttc === null) return res.status(400).json({ error: 'ttc must be an integer between 1 and 1440 minutes' });
   const title = toTitleCase(req.body.title);
@@ -43,12 +43,14 @@ router.post('/', authenticateToken, async (req, res) => {
     return res.status(403).json({ error: "Access denied: Only admins can add recipes" });
   }
 
+  const flagsArr = Array.isArray(dietary_flags) ? dietary_flags.filter(f => typeof f === 'string') : [];
+
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     const recipeResult = await client.query(
-      'INSERT INTO recipes (title, ttc, user_id) VALUES ($1, $2, $3) RETURNING id',
-      [title, ttc, userId]
+      'INSERT INTO recipes (title, ttc, user_id, dietary_flags) VALUES ($1, $2, $3, $4) RETURNING id',
+      [title, ttc, userId, flagsArr]
     );
     const recipeId = recipeResult.rows[0].id;
 
@@ -56,6 +58,13 @@ router.post('/', authenticateToken, async (req, res) => {
       await client.query(
         'INSERT INTO images (recipe_id, url) VALUES ($1, $2)',
         [recipeId, imageUrl]
+      );
+    }
+
+    if (typeof tag === 'string' && tag.trim()) {
+      await client.query(
+        'INSERT INTO recipe_tags (recipe_id, name) VALUES ($1, $2)',
+        [recipeId, tag.trim()]
       );
     }
 
@@ -161,14 +170,27 @@ router.put('/:id', authenticateToken, async (req, res) => {
   const adminResult = await pool.query('SELECT 1 FROM admins WHERE user_id = $1', [req.user.id]);
   if (adminResult.rows.length === 0) return res.status(403).json({ error: "Admins only" });
 
-  const { ingredients, steps, imageUrl } = req.body;
+  const { ingredients, steps, imageUrl, tag, dietary_flags } = req.body;
   const ttc = parseTtc(req.body.ttc);
   if (ttc === null) return res.status(400).json({ error: 'ttc must be an integer between 1 and 1440 minutes' });
   const title = toTitleCase(req.body.title);
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    await client.query('UPDATE recipes SET title = $1, ttc = $2 WHERE id = $3', [title, ttc, id]);
+    if (Array.isArray(dietary_flags)) {
+      const flagsArr = dietary_flags.filter(f => typeof f === 'string');
+      await client.query('UPDATE recipes SET title = $1, ttc = $2, dietary_flags = $3 WHERE id = $4', [title, ttc, flagsArr, id]);
+    } else {
+      await client.query('UPDATE recipes SET title = $1, ttc = $2 WHERE id = $3', [title, ttc, id]);
+    }
+
+    if (tag !== undefined) {
+      await client.query('DELETE FROM recipe_tags WHERE recipe_id = $1', [id]);
+      const trimmedTag = (tag || '').trim();
+      if (trimmedTag) {
+        await client.query('INSERT INTO recipe_tags (recipe_id, name) VALUES ($1, $2)', [id, trimmedTag]);
+      }
+    }
 
     if (imageUrl !== undefined) {
       const trimmed = (imageUrl || '').trim();

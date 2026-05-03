@@ -2,16 +2,22 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { API_BASE } from './config';
 import { Trash2, CheckCircle } from 'lucide-react';
+import { CUISINE_TAGS, DIETARY_FLAGS } from './utils/tags';
 
 const AddRecipe = ({ token, onRecipeAdded }) => {
   const [title, setTitle] = useState('');
   const [ttc, setTtc] = useState('');
   const [imageUrl, setImageUrl] = useState('');
+  const [tag, setTag] = useState('');
+  const [dietaryFlags, setDietaryFlags] = useState([]);
   const [ingredients, setIngredients] = useState([{ name: '', amount: '' }]);
   const [steps, setSteps] = useState(['']);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+
+  const toggleFlag = (key) =>
+    setDietaryFlags(f => f.includes(key) ? f.filter(x => x !== key) : [...f, key]);
 
   const handleIngredientChange = (index, field, value) => {
     const updated = [...ingredients];
@@ -39,7 +45,7 @@ const AddRecipe = ({ token, onRecipeAdded }) => {
         .map(s => /[.!?:]$/.test(s) ? s : `${s}.`);
       await axios.post(
         `${API_BASE}/api/recipes`,
-        { title, ttc: parseInt(ttc), imageUrl, ingredients, steps: normalizedSteps },
+        { title, ttc: parseInt(ttc), imageUrl, ingredients, steps: normalizedSteps, tag: tag || null, dietary_flags: dietaryFlags },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setSuccess(true);
@@ -87,6 +93,32 @@ const AddRecipe = ({ token, onRecipeAdded }) => {
               placeholder="Image URL (optional)"
               value={imageUrl} onChange={e => setImageUrl(e.target.value)}
             />
+            <select
+              className="edit-input"
+              value={tag}
+              onChange={e => setTag(e.target.value)}
+            >
+              <option value="">Cuisine / category (optional)</option>
+              {CUISINE_TAGS.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </div>
+
+          <div style={{ marginTop: '18px' }}>
+            <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '10px' }}>
+              Dietary flags (optional)
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+              {DIETARY_FLAGS.map(f => (
+                <button
+                  key={f.key}
+                  type="button"
+                  className={`tag-pill ${dietaryFlags.includes(f.key) ? 'active' : ''}`}
+                  onClick={() => toggleFlag(f.key)}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 

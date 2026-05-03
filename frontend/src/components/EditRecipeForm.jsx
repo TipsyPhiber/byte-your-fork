@@ -1,7 +1,13 @@
 import React from 'react';
 import { Trash2 } from 'lucide-react';
+import { CUISINE_TAGS, DIETARY_FLAGS } from '../utils/tags';
 
 export default function EditRecipeForm({ editForm, setEditForm, onSave, onCancel }) {
+  const toggleFlag = (key) => {
+    const current = editForm.dietary_flags || [];
+    const next = current.includes(key) ? current.filter(x => x !== key) : [...current, key];
+    setEditForm({ ...editForm, dietary_flags: next });
+  };
   return (
     <div className="modal-scroll" style={{ paddingTop: '60px' }}>
       <h2 style={{ color: 'var(--text-1)', marginBottom: '24px', fontWeight: 800, letterSpacing: '-0.02em' }}>Edit Recipe</h2>
@@ -9,6 +15,32 @@ export default function EditRecipeForm({ editForm, setEditForm, onSave, onCancel
         <input className="edit-input" value={editForm.title} onChange={e => setEditForm({ ...editForm, title: e.target.value })} placeholder="Title" />
         <input className="edit-input" type="number" value={editForm.ttc} onChange={e => setEditForm({ ...editForm, ttc: e.target.value })} placeholder="Time to cook (mins)" />
         <input className="edit-input" type="url" value={editForm.imageUrl ?? ''} onChange={e => setEditForm({ ...editForm, imageUrl: e.target.value })} placeholder="Image URL (leave blank to remove)" />
+        <select
+          className="edit-input"
+          value={editForm.tag ?? ''}
+          onChange={e => setEditForm({ ...editForm, tag: e.target.value })}
+        >
+          <option value="">Cuisine / category (none)</option>
+          {CUISINE_TAGS.map(t => <option key={t} value={t}>{t}</option>)}
+        </select>
+      </div>
+
+      <div style={{ marginBottom: '24px' }}>
+        <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '10px' }}>
+          Dietary flags
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+          {DIETARY_FLAGS.map(f => (
+            <button
+              key={f.key}
+              type="button"
+              className={`tag-pill ${(editForm.dietary_flags || []).includes(f.key) ? 'active' : ''}`}
+              onClick={() => toggleFlag(f.key)}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <h3 className="recipe-section-title">Ingredients</h3>
