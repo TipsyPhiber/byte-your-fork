@@ -1,6 +1,6 @@
 # Byte Your Fork
 
-A full-stack recipe discovery and cooking app with hands-free, AI-guided "Cook Mode." 
+A full-stack recipe discovery and cooking app with hands-free, voice-guided "Cook Mode." 
 
 ---
 
