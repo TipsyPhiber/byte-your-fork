@@ -69,11 +69,6 @@ Everything about you and your account, organized into four panels.
 
 ![Email & password](Demo_Content/email_password_settings.png)
 
-### About
-Project background and credits.
-
-![About page](Demo_Content/about_page.png)
-
 ---
 
 ## Tech stack
