@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import axios from 'axios';
 import { API_BASE } from '../config';
 import CookMode from '../CookMode';
@@ -38,7 +38,12 @@ export default function RecipeModal({ recipe, token, user, isAdmin, favoritedIds
   const [servings, setServings] = useState(BASE_SERVINGS);
   const [addToListState, setAddToListState] = useState('idle'); // idle | adding | added | error
   const [imgFailed, setImgFailed] = useState(false);
-  useEffect(() => { setImgFailed(false); }, [recipe.id, recipe.image_url]);
+  const imgKey = `${recipe.id}|${recipe.image_url ?? ''}`;
+  const [prevImgKey, setPrevImgKey] = useState(imgKey);
+  if (prevImgKey !== imgKey) {
+    setPrevImgKey(imgKey);
+    setImgFailed(false);
+  }
 
   const scale = servings / BASE_SERVINGS;
   const adjustServings = (delta) => setServings(s => Math.max(MIN_SERVINGS, Math.min(MAX_SERVINGS, s + delta)));
