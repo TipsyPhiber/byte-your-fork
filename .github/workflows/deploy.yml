@@ -73,5 +73,6 @@ jobs:
             git pull origin main
             export IMAGE_REPO IMAGE_TAG
             docker compose pull
+            docker compose run --rm backend node migrate.js
             docker compose up -d --remove-orphans
             docker image prune -f
