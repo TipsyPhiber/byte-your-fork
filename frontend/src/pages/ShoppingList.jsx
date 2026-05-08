@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { API_BASE } from '../config';
 import { ShoppingCart, Plus, Trash2, Check, Send, Mail, Share2, Printer, Store, CheckSquare, Square } from 'lucide-react';
@@ -30,16 +30,13 @@ export default function ShoppingList({ token }) {
     return () => clearTimeout(t);
   }, [sendStatus]);
 
-  const fetchItems = useCallback(async () => {
+  useEffect(() => {
     if (!token) return;
-    try {
-      const res = await axios.get(`${BASE}/shopping-list`, { headers: { Authorization: `Bearer ${token}` } });
-      setItems(res.data);
-    } catch { /* fetch failed; leave items as-is */ }
-    finally { setLoading(false); }
+    axios.get(`${BASE}/shopping-list`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(res => setItems(res.data))
+      .catch(() => { /* fetch failed; leave items as-is */ })
+      .finally(() => setLoading(false));
   }, [token]);
-
-  useEffect(() => { fetchItems(); }, [fetchItems]);
 
   const addItem = async (e) => {
     e?.preventDefault();

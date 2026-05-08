@@ -4,7 +4,7 @@ import logoImg from '../Images/souschef_logo.png';
 import { Mic, Search, Star, Bookmark, ChefHat, ArrowRight, Check, Sparkles } from 'lucide-react';
 
 const FEATURES = [
-  { icon: <Mic size={22} />,      title: 'AI Cook Mode',       color: '#3b82f6', glow: 'rgba(59,130,246,0.28)',   desc: 'Hands-free voice guidance powered by Gemini Live. Get real-time help without touching your screen.' },
+  { icon: <Mic size={22} />,      title: 'Voice Cook Mode',    color: '#3b82f6', glow: 'rgba(59,130,246,0.28)',   desc: "Hands-free voice guidance using your browser's built-in speech recognition. Talk to it while you cook — no app or account needed." },
   { icon: <Search size={22} />,   title: 'Smart Discovery',    color: '#8b5cf6', glow: 'rgba(139,92,246,0.28)',  desc: 'Search by dish, ingredient, or browse by cuisine. Results tailored to what you actually like.' },
   { icon: <Star size={22} />,     title: 'Community Ratings',  color: '#f59e0b', glow: 'rgba(245,158,11,0.28)',  desc: "Every recipe rated by real home cooks. Know what's worth making before you even start." },
   { icon: <Bookmark size={22} />, title: 'Your Cookbook',      color: '#10b981', glow: 'rgba(16,185,129,0.28)',  desc: 'Save, filter by cuisine, and sort by rating, name, or cook time. Your collection, your rules.' },
@@ -12,7 +12,7 @@ const FEATURES = [
   { icon: <Sparkles size={22} />, title: 'Tailored For You',   color: '#ec4899', glow: 'rgba(236,72,153,0.28)',  desc: 'Recommendations shaped by your taste preferences. The more you explore, the smarter it gets.' },
 ];
 
-const CHECKS = ['Free to get started', 'No ads, ever', 'Works on any device', 'AI voice guidance', 'Community rated'];
+const CHECKS = ['Free to get started', 'No ads, ever', 'Works on any device', 'Hands-free voice guidance', 'Community rated'];
 
 const LandingPage = ({ onLogin, onSignUp, onHome, onAbout }) => {
   const [hoveredCard, setHoveredCard] = useState(null);
@@ -51,7 +51,7 @@ const LandingPage = ({ onLogin, onSignUp, onHome, onAbout }) => {
         {/* Hero content */}
         <div style={{ textAlign: 'center', maxWidth: '680px', position: 'relative', zIndex: 1 }}>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.3)', borderRadius: '100px', padding: '5px 14px', marginBottom: '28px', fontSize: '0.72rem', fontWeight: 700, color: '#93c5fd', letterSpacing: '0.6px', textTransform: 'uppercase' }}>
-            <Mic size={11} /> AI-Powered Voice Cooking
+            <Mic size={11} /> Hands-Free Voice Cooking
           </div>
           <h1 style={{ fontSize: 'clamp(3rem, 7vw, 5.8rem)', fontWeight: 800, margin: '0 0 20px', letterSpacing: '-0.035em', lineHeight: 1.02, textShadow: '0 2px 40px rgba(0,0,0,0.4)' }}>
             Cook Smarter.<br />Eat Better.

@@ -9,7 +9,7 @@ A full-stack recipe discovery and cooking app with hands-free, voice-guided **Co
 ## What it does
 
 - **Discover recipes** by dish, ingredient, cuisine, or dietary tag, with results tuned to your preferences.
-- **AI Cook Mode** — voice-guided, hands-free cooking powered by Google Gemini Live. Talk to it while your hands are covered in flour.
+- **Voice Cook Mode** — voice-guided, hands-free cooking using your browser's built-in speech recognition and synthesis. Talk to it while your hands are covered in flour — no external API or account required.
 - **Personal cookbook** — save favorites, filter by cuisine, sort by rating / name / cook time.
 - **Community ratings & comments** on every recipe.
 - **Shopping list** built from saved recipes, with multi-recipe ingredient merging.
@@ -40,6 +40,11 @@ Your personal cookbook. Everything you've saved, in one place.
 
 ![Favorites page](Demo_Content/favorites_page.png)
 
+### Cook Mode
+Hands-free, voice-guided cooking. Cook Mode reads each step out loud and listens for commands like "next", "back", or "repeat" so you never have to wipe flour off your phone. Pick from any of the system voices your device offers — different accents, languages, speeds — and your choice is remembered between sessions.
+
+![Cook Mode](Demo_Content/cookmode.png)
+
 ### Shopping list
 Pulls ingredients from every recipe you flag and merges duplicates so you don't end up buying onions four times.
 
@@ -67,8 +72,8 @@ Project background and credits.
 | Backend     | Node.js, Express 5, REST API |
 | Database    | PostgreSQL 16 (raw SQL migrations, no ORM) |
 | Auth        | JWT, bcrypt, AES-encrypted PII at rest |
-| AI          | Google Gemini (text + Live voice API) |
-| Email       | Nodemailer (transactional) |
+| Voice       | Web Speech API (browser-native, no server-side AI) |
+| Email       | Nodemailer over SMTP (transactional) |
 | Infra       | Docker Compose, Nginx reverse proxy |
 | Hardening   | Helmet, express-rate-limit, CORS, parameterized queries |
 
@@ -82,8 +87,8 @@ Browser ──▶ Frontend container (Nginx + Vite-built React SPA)
               └──▶ Backend container (Express API)
                        │
                        ├──▶ PostgreSQL (recipes, users, ratings, …)
-                       ├──▶ Gemini API (Cook Mode, dietary tagging)
-                       └──▶ SMTP (verification, password reset)
+                       └──▶ SMTP (verification, password reset, shopping list)
+
 ```
 
 Each service is its own container, orchestrated by `docker-compose.yml`. The full stack runs locally with one command.
@@ -94,7 +99,7 @@ Each service is its own container, orchestrated by `docker-compose.yml`. The ful
 
 - **End-to-end ownership** — product design, schema design, API design, UI, and ops.
 - **Security awareness** — encrypted PII, hashed passwords, rate-limited auth endpoints, parameterized SQL, secrets kept out of source.
-- **Real-time AI integration** — bidirectional audio streaming with Gemini Live for the voice cook mode.
+- **Browser-native voice UX** — Cook Mode runs entirely client-side using the Web Speech API (SpeechRecognition + SpeechSynthesis). No external API costs, no audio leaves the user's device.
 - **Schema evolution** — incremental SQL migrations checked into the repo, applied via a small Node runner.
 - **Pragmatism** — no ORM, no Redux, no microservices. Right-sized for the problem.
 
@@ -143,7 +148,7 @@ Open `backend/.env` and fill in these **three required** values. You can paste t
 | `JWT_SECRET`   | any long random string — e.g. `openssl rand -hex 64` |
 | `AES_KEY`      | exactly 64 hex chars — e.g. `openssl rand -hex 32` |
 
-The other variables (SMTP, Gemini, Instacart) are **optional** — the app runs without them. Only the features that depend on them will be inactive (e.g. password-reset emails, voice Cook Mode).
+The other variables (SMTP, Instacart) are **optional** — the app runs without them. Only the features that depend on them will be inactive (e.g. password-reset emails, Instacart hand-off). Cook Mode is browser-native and doesn't require any keys.
 
 ### 3. Start everything
 

@@ -7,7 +7,7 @@ export default function Explore({ recipes, favoritedIds, onOpen, onToggleFavorit
   const [activeTag, setActiveTag] = useState('All');
   const [activeDiets, setActiveDiets] = useState([]);
 
-  const userRestrictions = user?.dietary_restrictions || [];
+  const userRestrictions = useMemo(() => user?.dietary_restrictions || [], [user?.dietary_restrictions]);
 
   const allTags = useMemo(
     () => ['All', ...Array.from(new Set(recipes.map(r => r.tag).filter(Boolean))).sort()],
