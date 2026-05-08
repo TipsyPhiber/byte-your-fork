@@ -10,9 +10,17 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+// SMTP_FROM may already include a display name (e.g. `"Team" <a@b.com>`).
+// Only wrap a bare address; otherwise nodemailer/SMTP rejects the header.
+const fromAddress = (() => {
+  const raw = (process.env.SMTP_FROM || process.env.SMTP_USER || '').trim();
+  if (!raw) return '';
+  return /<[^>]+>/.test(raw) ? raw : `"Byte Your Fork" <${raw}>`;
+})();
+
 async function sendVerificationEmail(to, firstName, code) {
   await transporter.sendMail({
-    from: `"Byte Your Fork" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
+    from: fromAddress,
     to,
     subject: 'Verify Your Email',
     html: `
@@ -36,7 +44,7 @@ async function sendVerificationEmail(to, firstName, code) {
 
 async function sendPasswordResetEmail(to, resetUrl) {
   await transporter.sendMail({
-    from: `"Byte Your Fork" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
+    from: fromAddress,
     to,
     subject: 'Reset Your Password',
     html: `
@@ -72,7 +80,7 @@ async function sendShoppingListEmail(to, firstName, items) {
   `).join('');
 
   await transporter.sendMail({
-    from: `"Byte Your Fork" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
+    from: fromAddress,
     to,
     subject: `Your shopping list (${items.length} item${items.length === 1 ? '' : 's'})`,
     html: `

@@ -83,7 +83,11 @@ router.post('/signup', authLimiter, async (req, res) => {
       await client.query('ROLLBACK');
       if (err.code === '23505') {
         if (err.constraint === 'users_username_key') return res.status(409).json({ error: 'Username is already taken.' });
-        if (err.constraint === 'users_email_key') return res.status(409).json({ error: 'An account with that email already exists.' });
+        // users.email is encrypted with a random IV, so users_email_key never
+        // trips; email_hashes_email_hmac_key is the real uniqueness gate.
+        if (err.constraint === 'users_email_key' || err.constraint === 'email_hashes_email_hmac_key') {
+          return res.status(409).json({ error: 'An account with that email already exists.' });
+        }
       }
       throw err;
     }
