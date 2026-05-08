@@ -51,11 +51,23 @@ Pulls ingredients from every recipe you flag and merges duplicates so you don't 
 ![Shopping list](Demo_Content/shoppinglist_page.png)
 
 ### Settings
-Manage your profile, dietary restrictions, cuisine preferences, and account security.
+Everything about you and your account, organized into four panels.
 
-<video src="Demo_Content/settings_demo.webm" controls width="720"></video>
+**Account** — profile picture, display name, and the basics.
 
-> If the video doesn't render in your viewer, open [`Demo_Content/settings_demo.webm`](Demo_Content/settings_demo.webm) directly.
+![Account settings](Demo_Content/account_settings.png)
+
+**Dietary restrictions** — tell the app what you don't eat; recipes are filtered out automatically across Explore, Search, and recommendations.
+
+![Dietary restrictions](Demo_Content/dietary_restrictions_settings.png)
+
+**Recipe preferences** — favorite cuisines and tastes; weighted into the recommendation engine.
+
+![Recipe preferences](Demo_Content/recipe_preferences_settings.png)
+
+**Email & password** — change email (re-verifies), change password, account security.
+
+![Email & password](Demo_Content/email_password_settings.png)
 
 ### About
 Project background and credits.
