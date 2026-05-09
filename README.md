@@ -50,6 +50,11 @@ Pulls ingredients from every recipe you flag and merges duplicates so you don't 
 
 ![Shopping list](Demo_Content/shoppinglist_page.png)
 
+### Notifications
+A running feed of activity that matters to you — new comments and ratings on your recipes, replies, and account events. Dismiss what you've read; the rest stays put.
+
+![Notifications page](Demo_Content/notifications_page.png)
+
 ### Settings
 Everything about you and your account, organized into four panels.
 
