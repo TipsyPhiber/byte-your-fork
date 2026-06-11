@@ -1,10 +1,12 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import React, { useEffect, useCallback } from 'react';
-import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
+import { App as CapApp } from '@capacitor/app';
 import './App.css';
 import { API_BASE } from './config';
 
+import { useAndroidBack } from './hooks/useAndroidBack';
 import { useAuth } from './hooks/useAuth';
 import { useDarkMode } from './hooks/useDarkMode';
 import { useRecipes } from './hooks/useRecipes';
@@ -34,10 +36,20 @@ function App() {
   const { token, user, setUser, login, logout } = useAuth();
   const [dark, setDark] = useDarkMode();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const { recipes, selectedRecipe, fetchRecipes, openRecipe, closeRecipe, updateRecipeRating } = useRecipes(token);
   const { favoritedIds, favoriteRecipes, fetchFavorites, toggleFavorite } = useFavorites(token);
   const { visibleNotifs, setClearedAt, fetchNotifications, handleClearNotifications, handleDismissNotification } = useNotifications(token);
+
+  // Android hardware back button: dismiss an open recipe first, then walk back
+  // through history, and only minimize the app (not hard-close) at the root.
+  const handleAndroidBack = useCallback(({ canGoBack }) => {
+    if (selectedRecipe) { closeRecipe(); return; }
+    if (canGoBack && location.pathname !== '/') { navigate(-1); return; }
+    CapApp.minimizeApp();
+  }, [selectedRecipe, closeRecipe, location.pathname, navigate]);
+  useAndroidBack(handleAndroidBack);
 
   useEffect(() => {
     if (!token) return;

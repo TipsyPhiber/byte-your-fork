@@ -12,7 +12,22 @@ const server = http.createServer(app);
 app.set('trust proxy', 1);
 
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
-app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:5173' }));
+
+// Allowed browser origins, plus the Capacitor mobile app's webview origins.
+// Android (androidScheme: 'https') reports https://localhost; iOS uses
+// capacitor://localhost. Requests with no Origin (curl, health checks) pass.
+const allowedOrigins = [
+  process.env.FRONTEND_URL || 'http://localhost:5173',
+  'https://localhost',
+  'http://localhost',
+  'capacitor://localhost',
+];
+app.use(cors({
+  origin(origin, cb) {
+    if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+    return cb(new Error(`Origin ${origin} not allowed by CORS`));
+  },
+}));
 app.use(rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 300,

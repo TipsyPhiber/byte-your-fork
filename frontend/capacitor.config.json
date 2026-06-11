@@ -1,0 +1,13 @@
+{
+  "appId": "com.byteyourfork.app",
+  "appName": "Byte Your Fork",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "SpeechRecognition": {
+      "permissionText": "Byte Your Fork uses the microphone for hands-free Cook Mode voice commands."
+    }
+  }
+}

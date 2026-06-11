@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { cleanSteps } from './utils/cleanRecipe';
 import { scaleAmount } from './utils/scaleAmount';
-
-const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+import { speak as ttsSpeak, cancelSpeech, loadVoices, onVoicesChanged, createRecognizer } from './utils/speech';
 
 const WORD_NUMS = { one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10 };
 
@@ -31,13 +30,13 @@ export default function CookMode({ recipe, onExit, scale = 1 }) {
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
-      window.speechSynthesis.cancel();
+      cancelSpeech();
       recognizerRef.current?.stop();
     };
   }, []);
 
   useEffect(() => {
-    const stop = () => window.speechSynthesis.cancel();
+    const stop = () => cancelSpeech();
     window.addEventListener('beforeunload', stop);
     return () => window.removeEventListener('beforeunload', stop);
   }, []);
@@ -48,13 +47,11 @@ export default function CookMode({ recipe, onExit, scale = 1 }) {
   }, []);
 
   useEffect(() => {
-    const loadVoices = () => {
-      const list = window.speechSynthesis.getVoices().filter(v => v.lang.startsWith('en'));
-      setVoices(list);
-    };
-    loadVoices();
-    window.speechSynthesis.addEventListener('voiceschanged', loadVoices);
-    return () => window.speechSynthesis.removeEventListener('voiceschanged', loadVoices);
+    let cancelled = false;
+    const refresh = () => { loadVoices().then(list => { if (!cancelled) setVoices(list); }); };
+    refresh();
+    const unsubscribe = onVoicesChanged(refresh);
+    return () => { cancelled = true; unsubscribe(); };
   }, []);
 
   useEffect(() => { localStorage.setItem('cm_voiceURI', voiceURI); }, [voiceURI]);
@@ -68,18 +65,7 @@ export default function CookMode({ recipe, onExit, scale = 1 }) {
 
   const speak = useCallback((text) => {
     if (!mountedRef.current) return;
-    window.speechSynthesis.cancel();
-    const utt = new SpeechSynthesisUtterance(text);
-    utt.rate = 0.88;
-    utt.pitch = 1;
-    const all = window.speechSynthesis.getVoices();
-    const chosen =
-      (voiceURI && all.find(v => v.voiceURI === voiceURI)) ||
-      all.find(v => v.name.toLowerCase().includes('google') && v.lang.startsWith('en')) ||
-      all.find(v => v.lang === 'en-US' && !v.name.toLowerCase().includes('espeak')) ||
-      all.find(v => v.lang.startsWith('en'));
-    if (chosen) utt.voice = chosen;
-    window.speechSynthesis.speak(utt);
+    ttsSpeak(text, { rate: 0.88, pitch: 1, voiceURI });
   }, [voiceURI]);
 
   const readStep = useCallback((idx) => {
@@ -95,16 +81,8 @@ export default function CookMode({ recipe, onExit, scale = 1 }) {
   // Auto-read step 0 on mount — runs once only
   useEffect(() => {
     if (!steps.length) return;
-    const tryRead = () => { if (mountedRef.current) readStepRef.current?.(0); };
-    if (window.speechSynthesis.getVoices().length > 0) {
-      setTimeout(tryRead, 150);
-    } else {
-      window.speechSynthesis.onvoiceschanged = () => {
-        tryRead();
-        window.speechSynthesis.onvoiceschanged = null;
-      };
-    }
-    return () => { window.speechSynthesis.onvoiceschanged = null; };
+    const id = setTimeout(() => { if (mountedRef.current) readStepRef.current?.(0); }, 250);
+    return () => clearTimeout(id);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const stopListening = useCallback(() => {
@@ -148,7 +126,7 @@ export default function CookMode({ recipe, onExit, scale = 1 }) {
       return;
     }
     if (/\b(stop|pause|quiet|silence|shush)\b/.test(lower)) {
-      window.speechSynthesis.cancel();
+      cancelSpeech();
       setResponse('Stopped.');
       return;
     }
@@ -168,24 +146,15 @@ export default function CookMode({ recipe, onExit, scale = 1 }) {
   }, [stepCount, speak, readStep, recipe.ingredients, scale]);
 
   const startListening = useCallback(() => {
-    if (!SpeechRecognition) return;
-    const rec = new SpeechRecognition();
-    rec.lang = 'en-US';
-    rec.continuous = true;
-    rec.interimResults = false;
-    rec.onstart  = () => setListening(true);
-    rec.onresult = (e) => {
-      const result = e.results[e.results.length - 1];
-      if (!result.isFinal) return;
-      const said = result[0].transcript.trim();
-      setTranscript(said);
-      handleCommand(said);
-    };
-    rec.onerror = (e) => { if (e.error !== 'no-speech') stopListening(); };
-    rec.onend   = () => setListening(false);
+    const rec = createRecognizer({
+      onStart:  () => setListening(true),
+      onResult: (said) => { setTranscript(said); handleCommand(said); },
+      onError:  () => { setListening(false); },
+      onEnd:    () => setListening(false),
+    });
     recognizerRef.current = rec;
     rec.start();
-  }, [handleCommand, stopListening]);
+  }, [handleCommand]);
 
   const goNext = () => {
     const idx = Math.min(currentStep + 1, stepCount - 1);
@@ -224,7 +193,7 @@ export default function CookMode({ recipe, onExit, scale = 1 }) {
             <div className="cook-mode-title">{recipe.title}</div>
             <div className="cook-mode-subtitle">Step {currentStep + 1} of {stepCount} · ⏱ {formatTime(elapsed)}</div>
           </div>
-          <button className="cook-mode-exit" onClick={() => { window.speechSynthesis.cancel(); recognizerRef.current?.stop(); onExit(); }}>
+          <button className="cook-mode-exit" onClick={() => { cancelSpeech(); recognizerRef.current?.stop(); onExit(); }}>
             Exit Cook Mode
           </button>
         </div>
