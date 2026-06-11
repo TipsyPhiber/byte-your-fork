@@ -90,20 +90,54 @@ export function createRecognizer({ onResult, onError, onStart, onEnd } = {}) {
   if (isNative) {
     let active = false;
 
-    const listenOnce = async () => {
-      if (!active) return;
-      try {
-        const result = await SpeechRecognition.start({
-          language: 'en-US',
-          partialResults: false,
-          popup: false,
-        });
-        const said = result?.matches?.[0];
-        if (active && said) onResult?.(said.trim());
-      } catch (e) {
-        if (active) onError?.(e);
+    const REARM_DELAY_MS = 200;        // let the native recognizer release before re-arming
+    const MAX_CONSECUTIVE_ERRORS = 5;  // bail out instead of spinning if it keeps failing
+    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+    // "Didn't hear anything" outcomes are normal between commands — re-arm
+    // quietly rather than surfacing them as errors or muting the mic.
+    const isTransient = (msg) =>
+      /no match|no speech|timeout|didn'?t understand|client side|busy|retry/i.test(msg);
+
+    // Android's recognizer is one-shot, so we loop to emulate continuous
+    // listening. Crucially this loop ALWAYS waits between turns (success or
+    // error), so a fast-failing start() can't become a hot CPU/battery loop —
+    // and a run of hard failures stops the loop instead of spinning forever.
+    const runLoop = async () => {
+      let consecutiveErrors = 0;
+      while (active) {
+        try {
+          const result = await SpeechRecognition.start({
+            language: 'en-US',
+            partialResults: false,
+            popup: false,
+          });
+          if (!active) return;
+          consecutiveErrors = 0;
+          const said = result?.matches?.[0];
+          if (said) onResult?.(said.trim());
+          await sleep(REARM_DELAY_MS);
+        } catch (e) {
+          if (!active) return;
+          const msg = (e?.message || String(e)).toLowerCase();
+          if (isTransient(msg)) {
+            consecutiveErrors += 1;
+            if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
+              active = false;
+              onError?.(new Error('Voice input keeps failing — stopped listening.'));
+              onEnd?.();
+              return;
+            }
+            await sleep(REARM_DELAY_MS);
+            continue;
+          }
+          // Fatal (permission denied, recognizer unavailable, …) — stop cleanly.
+          active = false;
+          onError?.(e);
+          onEnd?.();
+          return;
+        }
       }
-      if (active) listenOnce(); // re-arm
     };
 
     return {
@@ -116,9 +150,10 @@ export function createRecognizer({ onResult, onError, onStart, onEnd } = {}) {
           onError?.(e);
           return;
         }
+        if (active) return; // already listening — don't start a second loop
         active = true;
         onStart?.();
-        listenOnce();
+        runLoop();
       },
       stop: async () => {
         active = false;
