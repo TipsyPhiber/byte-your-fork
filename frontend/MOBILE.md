@@ -42,9 +42,16 @@ Re-run `npm run sync:mobile` after any frontend change to push it into the app.
 The mic permission is requested at runtime the first time the user taps the Cook
 Mode mic button.
 
+## Native polish (done)
+
+- App icon & splash generated from the SousChef logo (`src/native.js` keeps the
+  status bar in sync with dark mode).
+- Hardware back button wired (`src/hooks/useAndroidBack.js`).
+- Safe-area insets for the status bar / gesture bar (`viewport-fit=cover` +
+  `env(safe-area-inset-*)` in `App.css`).
+- Keyboard handling: native resize, and the bottom nav hides while typing.
+
 ## Not done yet (follow-ups)
 
-- App icon & splash screen (currently Capacitor defaults).
-- Android hardware back-button handling (`@capacitor/app` is installed but not wired).
 - Play Store signing config for release builds.
 - iOS (would need a Mac; `cap add ios` + the same plugins).
