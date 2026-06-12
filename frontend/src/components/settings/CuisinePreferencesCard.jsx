@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import axios from 'axios';
-import { API_BASE } from '../../config';
+import { api } from '../../api';
 
 const TAG_GROUPS = [
   {
@@ -25,7 +24,7 @@ const TAG_GROUPS = [
   },
 ];
 
-const CuisinePreferencesCard = ({ user, setUser, token, onPreferencesChange }) => {
+const CuisinePreferencesCard = ({ user, setUser, token, onPreferencesChange }) => { // eslint-disable-line no-unused-vars -- token still flows; auth lives in the shared api client
   const userPrefs = user?.preferences;
   const [preferences, setPreferences] = useState(userPrefs || []);
   const [lastSyncedPrefs, setLastSyncedPrefs] = useState(userPrefs);
@@ -44,7 +43,7 @@ const CuisinePreferencesCard = ({ user, setUser, token, onPreferencesChange }) =
 
   const handleSave = async () => {
     try {
-      await axios.put(`${API_BASE}/api/auth/preferences`, { preferences }, { headers: { Authorization: `Bearer ${token}` } });
+      await api.put('/auth/preferences', { preferences });
       setUser({ ...user, preferences });
       if (onPreferencesChange) onPreferencesChange(preferences);
       setMessage('Preferences saved!');

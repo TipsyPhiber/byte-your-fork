@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import axios from 'axios';
-import { API_BASE } from '../../config';
+import { api } from '../../api';
 
-const EmailCard = ({ user, setUser, token }) => {
+const EmailCard = ({ user, setUser, token }) => { // eslint-disable-line no-unused-vars -- token still flows; auth lives in the shared api client
   const [newEmail, setNewEmail] = useState('');
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState('');
@@ -12,7 +11,7 @@ const EmailCard = ({ user, setUser, token }) => {
     e.preventDefault();
     setMessage(''); setError('');
     try {
-      await axios.put(`${API_BASE}/api/auth/update-email`, { newEmail, password }, { headers: { Authorization: `Bearer ${token}` } });
+      await api.put('/auth/update-email', { newEmail, password });
       setUser({ ...user, email: newEmail });
       setMessage('Email updated successfully!');
       setNewEmail(''); setPassword('');

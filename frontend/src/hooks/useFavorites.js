@@ -1,8 +1,6 @@
 import { useState, useCallback } from 'react';
-import axios from 'axios';
-import { API_BASE, normalizeRowImage } from '../config';
-
-const BASE = `${API_BASE}/api`;
+import { api } from '../api';
+import { normalizeRowImage } from '../config';
 
 export function useFavorites(token) {
   const [favoritedIds, setFavoritedIds] = useState(new Set());
@@ -12,8 +10,8 @@ export function useFavorites(token) {
     if (!token) return;
     try {
       const [idsRes, recipesRes] = await Promise.all([
-        axios.get(`${BASE}/favorites/ids`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${BASE}/favorites`, { headers: { Authorization: `Bearer ${token}` } }),
+        api.get('/favorites/ids'),
+        api.get('/favorites'),
       ]);
       setFavoritedIds(new Set(idsRes.data));
       setFavoriteRecipes(recipesRes.data.map(normalizeRowImage));
@@ -26,17 +24,17 @@ export function useFavorites(token) {
     const isFav = favoritedIds.has(recipeId);
     try {
       if (isFav) {
-        await axios.delete(`${BASE}/favorites/${recipeId}`, { headers: { Authorization: `Bearer ${token}` } });
+        await api.delete(`/favorites/${recipeId}`);
         setFavoritedIds(prev => { const s = new Set(prev); s.delete(recipeId); return s; });
         setFavoriteRecipes(prev => prev.filter(r => r.id !== recipeId));
       } else {
-        await axios.post(`${BASE}/favorites/${recipeId}`, {}, { headers: { Authorization: `Bearer ${token}` } });
+        await api.post(`/favorites/${recipeId}`);
         setFavoritedIds(prev => new Set([...prev, recipeId]));
         const recipe = recipes?.find(r => r.id === recipeId);
         if (recipe) setFavoriteRecipes(prev => [...prev, recipe].sort((a, b) => a.title.localeCompare(b.title)));
       }
     } catch { /* ignore */ }
-  }, [token, favoritedIds]);
+  }, [favoritedIds]);
 
   return { favoritedIds, favoriteRecipes, fetchFavorites, toggleFavorite };
 }

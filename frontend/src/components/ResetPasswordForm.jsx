@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import axios from 'axios';
-import { API_BASE } from '../config';
+import { api } from '../api';
 
 export default function ResetPasswordForm({ token, onDone }) {
   const [newPassword, setNewPassword] = useState('');
@@ -16,7 +15,7 @@ export default function ResetPasswordForm({ token, onDone }) {
     setLoading(true);
     setError('');
     try {
-      const res = await axios.post(`${API_BASE}/api/auth/reset-password`, { token, newPassword });
+      const res = await api.post('/auth/reset-password', { token, newPassword });
       setStatus(res.data.message);
     } catch (err) {
       setError(err.response?.data?.error || 'Something went wrong. The link may have expired.');

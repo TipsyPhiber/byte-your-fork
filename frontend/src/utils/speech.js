@@ -44,10 +44,22 @@ export function onVoicesChanged(cb) {
 }
 
 // ───────────────────────── Speak ─────────────────────────
+// Track when TTS is audible so Cook Mode can ignore recognition results that
+// are actually the synthesized voice ("Try saying next…" must not trigger
+// the "next" command). A short grace window covers recognizer latency.
+let speechEndAt = 0;
+let speakingNow = false;
+
+export function isTtsAudible(graceMs = 800) {
+  return speakingNow || (Date.now() - speechEndAt) < graceMs;
+}
+
 export async function speak(text, { rate = 0.88, pitch = 1, voiceURI } = {}) {
   if (isNative) {
     await TextToSpeech.stop().catch(() => {});
     const idx = voiceURI ? nativeVoices.findIndex(v => (v.voiceURI || '') === voiceURI) : -1;
+    speakingNow = true;
+    // Plugin resolves when playback finishes.
     await TextToSpeech.speak({
       text,
       lang: 'en-US',
@@ -55,6 +67,8 @@ export async function speak(text, { rate = 0.88, pitch = 1, voiceURI } = {}) {
       pitch,
       ...(idx >= 0 ? { voice: idx } : {}),
     }).catch(() => {});
+    speakingNow = false;
+    speechEndAt = Date.now();
     return;
   }
   window.speechSynthesis.cancel();
@@ -68,10 +82,23 @@ export async function speak(text, { rate = 0.88, pitch = 1, voiceURI } = {}) {
     all.find(v => v.lang === 'en-US' && !v.name.toLowerCase().includes('espeak')) ||
     all.find(v => v.lang.startsWith('en'));
   if (chosen) utt.voice = chosen;
+  speakingNow = true;
+  // Chrome sometimes never fires onend (esp. when voices stall) — without a
+  // watchdog the "TTS audible" gate would mute voice commands forever.
+  const watchdog = setTimeout(done, 3000 + text.length * 100);
+  function done() {
+    clearTimeout(watchdog);
+    speakingNow = false;
+    speechEndAt = Date.now();
+  }
+  utt.onend = done;
+  utt.onerror = done;
   window.speechSynthesis.speak(utt);
 }
 
 export function cancelSpeech() {
+  speakingNow = false;
+  speechEndAt = Date.now();
   if (isNative) {
     TextToSpeech.stop().catch(() => {});
     return;
@@ -83,9 +110,10 @@ export function cancelSpeech() {
 // Returns a recognizer with start()/stop(). Callbacks: onResult(transcript),
 // onError(err), onStart(), onEnd().
 //
-// Web uses a single continuous SpeechRecognition session. Android's native
-// recognizer is one-shot, so we re-arm it after each result to emulate
-// continuous listening for as long as the user keeps the mic on.
+// Both paths emulate continuous listening until stop() is called:
+//  - Android's native recognizer is one-shot → re-arm loop.
+//  - Chrome's "continuous" session still self-terminates after silence →
+//    restart from onend while the user intends to listen.
 export function createRecognizer({ onResult, onError, onStart, onEnd } = {}) {
   if (isNative) {
     let active = false;
@@ -167,27 +195,70 @@ export function createRecognizer({ onResult, onError, onStart, onEnd } = {}) {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) {
     return {
-      start: () => onError?.(new Error('SpeechRecognition not supported')),
+      start: () => onError?.(new Error(
+        'Voice input is not supported in this browser — try Chrome or Edge.'
+      )),
       stop: () => {},
     };
   }
+
+  let active = false;
   let rec = null;
+  let restartTimer = null;
+
+  const launch = () => {
+    rec = new SR();
+    rec.lang = 'en-US';
+    rec.continuous = true;
+    rec.interimResults = false;
+    rec.onresult = (e) => {
+      const result = e.results[e.results.length - 1];
+      if (!result.isFinal) return;
+      onResult?.(result[0].transcript.trim());
+    };
+    rec.onerror = (e) => {
+      if (e.error === 'no-speech' || e.error === 'aborted') return; // normal lulls
+      // Fatal errors (mic denied, network) — stop for real and tell the user.
+      active = false;
+      const messages = {
+        'not-allowed': 'Microphone access was denied — allow it in your browser settings.',
+        'audio-capture': 'No microphone found.',
+        'network': 'Voice recognition needs an internet connection.',
+      };
+      onError?.(new Error(messages[e.error] || `Voice input error: ${e.error}`));
+    };
+    rec.onend = () => {
+      // Chrome ends "continuous" sessions after silence. While the user still
+      // wants the mic on, restart quietly instead of going silently deaf.
+      if (active) {
+        restartTimer = setTimeout(() => {
+          if (!active) return;
+          try { launch(); } catch { active = false; onEnd?.(); }
+        }, 150);
+        return;
+      }
+      onEnd?.();
+    };
+    rec.start();
+  };
+
   return {
     start: () => {
-      rec = new SR();
-      rec.lang = 'en-US';
-      rec.continuous = true;
-      rec.interimResults = false;
-      rec.onstart = () => onStart?.();
-      rec.onresult = (e) => {
-        const result = e.results[e.results.length - 1];
-        if (!result.isFinal) return;
-        onResult?.(result[0].transcript.trim());
-      };
-      rec.onerror = (e) => { if (e.error !== 'no-speech') onError?.(e); };
-      rec.onend = () => onEnd?.();
-      rec.start();
+      if (active) return;
+      active = true;
+      try {
+        launch();
+        onStart?.();
+      } catch (e) {
+        active = false;
+        onError?.(e);
+      }
     },
-    stop: () => { rec?.stop(); rec = null; },
+    stop: () => {
+      active = false;
+      clearTimeout(restartTimer);
+      try { rec?.stop(); } catch { /* already stopped */ }
+      rec = null;
+    },
   };
 }

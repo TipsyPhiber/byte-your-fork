@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
-import axios from 'axios';
-import { API_BASE } from './config';
+import { api } from './api';
 import { Trash2, CheckCircle } from 'lucide-react';
 import { CUISINE_TAGS, DIETARY_FLAGS } from './utils/tags';
 
-const AddRecipe = ({ token, onRecipeAdded }) => {
+const AddRecipe = ({ token, onRecipeAdded }) => { // eslint-disable-line no-unused-vars -- token still flows; auth lives in the shared api client
   const [title, setTitle] = useState('');
   const [ttc, setTtc] = useState('');
   const [imageUrl, setImageUrl] = useState('');
@@ -43,10 +42,9 @@ const AddRecipe = ({ token, onRecipeAdded }) => {
         .map(s => s.trim())
         .filter(Boolean)
         .map(s => /[.!?:]$/.test(s) ? s : `${s}.`);
-      await axios.post(
-        `${API_BASE}/api/recipes`,
-        { title, ttc: parseInt(ttc), imageUrl, ingredients, steps: normalizedSteps, tag: tag || null, dietary_flags: dietaryFlags },
-        { headers: { Authorization: `Bearer ${token}` } }
+      await api.post(
+        '/recipes',
+        { title, ttc: parseInt(ttc), imageUrl, ingredients, steps: normalizedSteps, tag: tag || null, dietary_flags: dietaryFlags }
       );
       setSuccess(true);
       setTimeout(() => {
@@ -84,7 +82,7 @@ const AddRecipe = ({ token, onRecipeAdded }) => {
               value={title} onChange={e => setTitle(e.target.value)} required
             />
             <input
-              type="number" className="edit-input"
+              type="number" inputMode="numeric" className="edit-input"
               placeholder="Cook time (minutes)"
               value={ttc} onChange={e => setTtc(e.target.value)} required
             />
@@ -146,8 +144,8 @@ const AddRecipe = ({ token, onRecipeAdded }) => {
                   value={ing.amount} onChange={e => handleIngredientChange(idx, 'amount', e.target.value)} required
                 />
                 {ingredients.length > 1 && (
-                  <button type="button" onClick={() => setIngredients(ingredients.filter((_, i) => i !== idx))}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', display: 'flex', alignItems: 'center', padding: '6px', borderRadius: '6px', flexShrink: 0, transition: 'color 0.15s' }}>
+                  <button type="button" className="icon-btn danger" aria-label="Remove ingredient"
+                    onClick={() => setIngredients(ingredients.filter((_, i) => i !== idx))}>
                     <Trash2 size={16} />
                   </button>
                 )}
@@ -175,8 +173,8 @@ const AddRecipe = ({ token, onRecipeAdded }) => {
                   value={step} onChange={e => handleStepChange(idx, e.target.value)} required
                 />
                 {steps.length > 1 && (
-                  <button type="button" onClick={() => setSteps(steps.filter((_, i) => i !== idx))}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', display: 'flex', alignItems: 'center', padding: '6px', borderRadius: '6px', flexShrink: 0, paddingTop: '12px', transition: 'color 0.15s' }}>
+                  <button type="button" className="icon-btn danger" aria-label="Remove step"
+                    onClick={() => setSteps(steps.filter((_, i) => i !== idx))}>
                     <Trash2 size={16} />
                   </button>
                 )}

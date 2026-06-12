@@ -1,10 +1,9 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import React, { useEffect, useCallback } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
-import axios from 'axios';
 import { App as CapApp } from '@capacitor/app';
 import './App.css';
-import { API_BASE } from './config';
+import { api } from './api';
 
 import { useAndroidBack } from './hooks/useAndroidBack';
 import { useAuth } from './hooks/useAuth';
@@ -30,8 +29,6 @@ import Favorites from './pages/Favorites';
 import Notifications from './pages/Notifications';
 import ShoppingList from './pages/ShoppingList';
 
-const BASE = `${API_BASE}/api`;
-
 function App() {
   const { token, user, setUser, login, logout } = useAuth();
   const [dark, setDark] = useDarkMode();
@@ -56,7 +53,7 @@ function App() {
     let mounted = true;
     async function init() {
       try {
-        const res = await axios.get(`${BASE}/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
+        const res = await api.get('/auth/me');
         if (!mounted) return;
         setUser(res.data);
         setClearedAt(res.data.notifications_cleared_at || null);
@@ -77,12 +74,12 @@ function App() {
 
   const handleDelete = useCallback(async (id) => {
     try {
-      await axios.delete(`${BASE}/recipes/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+      await api.delete(`/recipes/${id}`);
       closeRecipe();
       fetchRecipes();
       fetchFavorites();
     } catch { /* silently fail — modal already shows error state */ }
-  }, [token, closeRecipe, fetchRecipes, fetchFavorites]);
+  }, [closeRecipe, fetchRecipes, fetchFavorites]);
 
   const handleLogout = useCallback(() => { logout(); navigate('/'); }, [logout, navigate]);
   const isAdmin = user?.role === 'admin';

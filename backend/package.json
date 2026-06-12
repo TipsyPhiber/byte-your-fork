@@ -8,6 +8,7 @@
     "start": "node server.js",
     "dev": "node --watch server.js",
     "migrate": "node migrate.js",
+    "seed": "node seed.js",
     "scrape": "node scraper.js",
     "retag": "node retagDietary.js"
   },

@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { X, Mic, MicOff, ChevronLeft, ChevronRight, Clock } from 'lucide-react';
 import { cleanSteps } from './utils/cleanRecipe';
 import { scaleAmount } from './utils/scaleAmount';
-import { speak as ttsSpeak, cancelSpeech, loadVoices, onVoicesChanged, createRecognizer } from './utils/speech';
+import { speak as ttsSpeak, cancelSpeech, isTtsAudible, loadVoices, onVoicesChanged, createRecognizer } from './utils/speech';
+import { setSessionKeepAlive } from './utils/session';
+import { useWakeLock } from './hooks/useWakeLock';
 
 const WORD_NUMS = { one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10 };
 
@@ -10,6 +13,7 @@ export default function CookMode({ recipe, onExit, scale = 1 }) {
   const [listening, setListening]     = useState(false);
   const [transcript, setTranscript]   = useState('');
   const [response, setResponse]       = useState('');
+  const [micError, setMicError]       = useState('');
   const [elapsed, setElapsed]         = useState(0);
   const [voices, setVoices]           = useState([]);
   const [voiceURI, setVoiceURI]       = useState(() => localStorage.getItem('cm_voiceURI') || '');
@@ -22,6 +26,14 @@ export default function CookMode({ recipe, onExit, scale = 1 }) {
   // Memoize so steps reference is stable across re-renders
   const steps     = useMemo(() => cleanSteps(recipe.steps ?? []), [recipe.steps]);
   const stepCount = steps.length;
+
+  // Kitchen mode: keep the screen awake, and don't let the hands-free lull
+  // trip the inactivity logout.
+  useWakeLock(true);
+  useEffect(() => {
+    setSessionKeepAlive(true);
+    return () => setSessionKeepAlive(false);
+  }, []);
 
   useEffect(() => { currentStepRef.current = currentStep; }, [currentStep]);
 
@@ -146,10 +158,20 @@ export default function CookMode({ recipe, onExit, scale = 1 }) {
   }, [stepCount, speak, readStep, recipe.ingredients, scale]);
 
   const startListening = useCallback(() => {
+    setMicError('');
     const rec = createRecognizer({
       onStart:  () => setListening(true),
-      onResult: (said) => { setTranscript(said); handleCommand(said); },
-      onError:  () => { setListening(false); },
+      onResult: (said) => {
+        // The mic hears our own TTS ("…try saying next") — drop anything
+        // captured while the voice is (or just was) audible.
+        if (isTtsAudible()) return;
+        setTranscript(said);
+        handleCommand(said);
+      },
+      onError:  (err) => {
+        setListening(false);
+        setMicError(err?.message || 'Voice input failed.');
+      },
       onEnd:    () => setListening(false),
     });
     recognizerRef.current = rec;
@@ -170,15 +192,23 @@ export default function CookMode({ recipe, onExit, scale = 1 }) {
     readStep(idx);
   };
 
+  const handleExit = () => {
+    cancelSpeech();
+    recognizerRef.current?.stop();
+    onExit();
+  };
+
   const progress = stepCount > 0 ? ((currentStep + 1) / stepCount) * 100 : 0;
 
   if (!stepCount) return (
     <div className="cook-mode-overlay">
-      <div className="cook-mode-container">
-        <div className="cook-mode-header">
-          <div className="cook-mode-title">{recipe.title}</div>
-          <button className="cook-mode-exit" onClick={onExit}>Exit Cook Mode</button>
+      <div className="cm-header">
+        <div className="cm-header-info">
+          <div className="cm-title">{recipe.title}</div>
         </div>
+        <button className="cm-exit" onClick={handleExit} aria-label="Exit Cook Mode"><X size={20} /></button>
+      </div>
+      <div className="cm-body">
         <p style={{ color: '#94a3b8', textAlign: 'center', marginTop: 40 }}>No steps found for this recipe.</p>
       </div>
     </div>
@@ -186,120 +216,138 @@ export default function CookMode({ recipe, onExit, scale = 1 }) {
 
   return (
     <div className="cook-mode-overlay">
-      <div className="cook-mode-container">
 
-        <div className="cook-mode-header">
-          <div>
-            <div className="cook-mode-title">{recipe.title}</div>
-            <div className="cook-mode-subtitle">Step {currentStep + 1} of {stepCount} · ⏱ {formatTime(elapsed)}</div>
+      <div className="cm-header">
+        <div className="cm-header-info">
+          <div className="cm-title">{recipe.title}</div>
+          <div className="cm-subtitle">
+            <span>Step {currentStep + 1} of {stepCount}</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              <Clock size={12} /> {formatTime(elapsed)}
+            </span>
           </div>
-          <button className="cook-mode-exit" onClick={() => { cancelSpeech(); recognizerRef.current?.stop(); onExit(); }}>
-            Exit Cook Mode
-          </button>
         </div>
-
-        <div className="cook-mode-progress-track">
-          <div className="cook-mode-progress-fill" style={{ width: `${progress}%` }} />
-        </div>
-
-        <div className="cook-mode-step-card">
-          <div className="cook-mode-step-num">Step {currentStep + 1}</div>
-          <div className="cook-mode-step-text">{steps[currentStep]}</div>
-        </div>
-
-        <div className="cook-mode-nav">
-          <button className="cook-mode-nav-btn" onClick={goPrev} disabled={currentStep === 0}>← Previous</button>
-          <button
-            className={`cook-mode-mic-btn ${listening ? 'listening' : ''}`}
-            onClick={listening ? stopListening : startListening}
-          >
-            {listening ? '🔴' : '🎤'}
-            <span>{listening ? 'Listening — tap to mute' : 'Tap to speak'}</span>
-          </button>
-          <button className="cook-mode-nav-btn" onClick={goNext} disabled={currentStep === stepCount - 1}>Next →</button>
-        </div>
-
-        {(transcript || response) && (
-          <div className="cook-mode-chat">
-            {transcript && (
-              <div className="cook-mode-user-msg">
-                <span className="cook-mode-msg-label">You</span>
-                <span>"{transcript}"</span>
-              </div>
-            )}
-            {response && (
-              <div className="cook-mode-ai-msg">
-                <span className="cook-mode-msg-label">Cook Mode</span>
-                <span>{response}</span>
-              </div>
-            )}
-          </div>
-        )}
-
-        <details className="cook-mode-ingredients">
-          <summary>Voice settings</summary>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 10 }}>
-            <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: '0.85rem', color: '#64748b' }}>
-              Voice
-              <select
-                value={voiceURI}
-                onChange={e => setVoiceURI(e.target.value)}
-                style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-1)' }}
-              >
-                <option value="">Default (auto-select)</option>
-                {voices.map(v => (
-                  <option key={v.voiceURI} value={v.voiceURI}>{v.name} ({v.lang})</option>
-                ))}
-              </select>
-            </label>
-            <button
-              className="cook-mode-nav-btn"
-              onClick={() => speak('Hello! This is how I will sound while reading your recipe.')}
-              style={{ alignSelf: 'flex-start' }}
-            >
-              Test voice
-            </button>
-            {voices.length === 0 && (
-              <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>No voices loaded yet — they appear after the browser registers them.</span>
-            )}
-          </div>
-        </details>
-
-        <details className="cook-mode-ingredients">
-          <summary>Voice commands</summary>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 24px', marginTop: '10px' }}>
-            {[
-              ['"next"',           'Go to next step'],
-              ['"back"',           'Go to previous step'],
-              ['"repeat"',         'Re-read current step'],
-              ['"step 3"',         'Jump to a specific step'],
-              ['"ingredients"',    'List all ingredients'],
-              ['"where am I"',     'Read current step again'],
-              ['"how many steps"', 'Total step count'],
-              ['"stop"',           'Stop speaking'],
-            ].map(([cmd, desc]) => (
-              <div key={cmd} style={{ display: 'flex', gap: '8px', alignItems: 'baseline' }}>
-                <span style={{ color: '#3b82f6', fontWeight: 700, fontSize: '0.82rem', whiteSpace: 'nowrap' }}>{cmd}</span>
-                <span style={{ color: '#64748b', fontSize: '0.8rem' }}>{desc}</span>
-              </div>
-            ))}
-          </div>
-        </details>
-
-        <details className="cook-mode-ingredients">
-          <summary>Ingredients reference</summary>
-          <ul>
-            {recipe.ingredients?.map((ing, i) => (
-              <li key={i}><strong>{scaleAmount(ing.amount, scale)}</strong> {ing.name}</li>
-            ))}
-          </ul>
-        </details>
-
-        {currentStep === stepCount - 1 && (
-          <div className="cook-mode-done">All steps complete — enjoy your meal!</div>
-        )}
-
+        <button className="cm-exit" onClick={handleExit} aria-label="Exit Cook Mode"><X size={20} /></button>
       </div>
+
+      <div className="cm-progress-track">
+        <div className="cm-progress-fill" style={{ width: `${progress}%` }} />
+      </div>
+
+      <div className="cm-body">
+        <div className="cm-body-inner">
+          <div className="cm-step-card">
+            <div className="cm-step-num">Step {currentStep + 1}</div>
+            <div className="cm-step-text">{steps[currentStep]}</div>
+          </div>
+
+          {currentStep === stepCount - 1 && (
+            <div className="cm-done">All steps complete — enjoy your meal!</div>
+          )}
+
+          {(transcript || response) && (
+            <div className="cm-chat">
+              {transcript && (
+                <div className="cm-user-msg">
+                  <span className="cm-msg-label">You</span>
+                  <span>"{transcript}"</span>
+                </div>
+              )}
+              {response && (
+                <div className="cm-ai-msg">
+                  <span className="cm-msg-label">Cook Mode</span>
+                  <span>{response}</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div style={{ marginTop: 'auto' }}>
+            <details className="cm-accordion">
+              <summary>Ingredients</summary>
+              <ul>
+                {recipe.ingredients?.map((ing, i) => (
+                  <li key={i}><strong>{scaleAmount(ing.amount, scale)}</strong> {ing.name}</li>
+                ))}
+              </ul>
+            </details>
+
+            <details className="cm-accordion">
+              <summary>Voice commands</summary>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '6px 24px', margin: '6px 0 14px' }}>
+                {[
+                  ['"next"',           'Go to next step'],
+                  ['"back"',           'Go to previous step'],
+                  ['"repeat"',         'Re-read current step'],
+                  ['"step 3"',         'Jump to a specific step'],
+                  ['"ingredients"',    'List all ingredients'],
+                  ['"where am I"',     'Read current step again'],
+                  ['"how many steps"', 'Total step count'],
+                  ['"stop"',           'Stop speaking'],
+                ].map(([cmd, desc]) => (
+                  <div key={cmd} style={{ display: 'flex', gap: '8px', alignItems: 'baseline' }}>
+                    <span style={{ color: 'var(--accent)', fontWeight: 700, fontSize: '0.82rem', whiteSpace: 'nowrap' }}>{cmd}</span>
+                    <span style={{ color: '#64748b', fontSize: '0.8rem' }}>{desc}</span>
+                  </div>
+                ))}
+              </div>
+            </details>
+
+            <details className="cm-accordion">
+              <summary>Voice settings</summary>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, margin: '6px 0 14px' }}>
+                <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: '0.85rem', color: '#64748b' }}>
+                  Voice
+                  <select
+                    value={voiceURI}
+                    onChange={e => setVoiceURI(e.target.value)}
+                    style={{ padding: '12px 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.14)', background: '#15151f', color: '#e2e8f0', fontSize: '1rem', fontFamily: 'inherit' }}
+                  >
+                    <option value="">Default (auto-select)</option>
+                    {voices.map(v => (
+                      <option key={v.voiceURI} value={v.voiceURI}>{v.name} ({v.lang})</option>
+                    ))}
+                  </select>
+                </label>
+                <button
+                  className="glass-btn"
+                  onClick={() => speak('Hello! This is how I will sound while reading your recipe.')}
+                  style={{ alignSelf: 'flex-start' }}
+                >
+                  Test voice
+                </button>
+                {voices.length === 0 && (
+                  <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>No voices loaded yet — they appear after the browser registers them.</span>
+                )}
+              </div>
+            </details>
+          </div>
+        </div>
+      </div>
+
+      <div className="cm-controls">
+        <button className="cm-nav-btn" onClick={goPrev} disabled={currentStep === 0} aria-label="Previous step">
+          <ChevronLeft size={26} />
+        </button>
+
+        <div className="cm-mic-wrap">
+          <button
+            className={`cm-mic-btn ${listening ? 'listening' : ''}`}
+            onClick={listening ? stopListening : startListening}
+            aria-label={listening ? 'Stop listening' : 'Start voice control'}
+          >
+            {listening ? <MicOff size={30} /> : <Mic size={30} />}
+          </button>
+          <span className={`cm-mic-label ${listening ? 'listening' : ''}`}>
+            {micError ? micError : listening ? 'Listening — tap to mute' : 'Tap to speak'}
+          </span>
+        </div>
+
+        <button className="cm-nav-btn" onClick={goNext} disabled={currentStep === stepCount - 1} aria-label="Next step">
+          <ChevronRight size={26} />
+        </button>
+      </div>
+
     </div>
   );
 }

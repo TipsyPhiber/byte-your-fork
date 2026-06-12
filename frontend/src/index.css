@@ -6,6 +6,9 @@ html, body {
   color: #0f0f14;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Don't let mobile browsers inflate text on rotate */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 #root { width: 100%; height: 100%; }

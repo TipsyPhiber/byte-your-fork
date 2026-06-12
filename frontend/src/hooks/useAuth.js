@@ -1,4 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { isSessionKeptAlive } from '../utils/session';
+import { showToast } from '../utils/toast';
+
+const INACTIVITY_MS = 15 * 60 * 1000;
 
 export function useAuth() {
   const [token, setToken] = useState(localStorage.getItem('token'));
@@ -15,18 +19,35 @@ export function useAuth() {
     setToken(t);
   }, []);
 
+  // Any API call that fails with an expired/invalid token (see api.js) ends
+  // the session in one place, with an explanation instead of silent failures.
+  useEffect(() => {
+    if (!token) return;
+    const onExpired = () => {
+      logout();
+      showToast({ kind: 'error', message: 'Session expired — please log in again.' });
+    };
+    window.addEventListener('byf:session-expired', onExpired);
+    return () => window.removeEventListener('byf:session-expired', onExpired);
+  }, [token, logout]);
+
   const inactivityTimer = useRef(null);
   useEffect(() => {
     if (!token) return;
-    const reset = () => {
+    const arm = () => {
       clearTimeout(inactivityTimer.current);
-      inactivityTimer.current = setTimeout(logout, 15 * 60 * 1000);
+      inactivityTimer.current = setTimeout(() => {
+        // Hands-free Cook Mode produces no touch events — don't log the user
+        // out mid-recipe; restart the window instead.
+        if (isSessionKeptAlive()) { arm(); return; }
+        logout();
+      }, INACTIVITY_MS);
     };
     const events = ['mousedown', 'mousemove', 'keydown', 'touchstart', 'scroll', 'click'];
-    events.forEach(ev => document.addEventListener(ev, reset, { passive: true }));
-    reset();
+    events.forEach(ev => document.addEventListener(ev, arm, { passive: true }));
+    arm();
     return () => {
-      events.forEach(ev => document.removeEventListener(ev, reset));
+      events.forEach(ev => document.removeEventListener(ev, arm));
       clearTimeout(inactivityTimer.current);
     };
   }, [token, logout]);

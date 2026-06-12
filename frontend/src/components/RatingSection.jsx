@@ -1,9 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import { API_BASE } from '../config';
+import { api } from '../api';
 import { Star } from 'lucide-react';
-
-const BASE = `${API_BASE}/api`;
 
 export default function RatingSection({ recipeId, token, onRatingUpdate }) {
   const [ratingData, setRatingData] = useState({ average: 0, count: 0, userRating: null });
@@ -11,14 +8,14 @@ export default function RatingSection({ recipeId, token, onRatingUpdate }) {
 
   useEffect(() => {
     if (!recipeId || !token) return;
-    axios.get(`${BASE}/ratings/${recipeId}`, { headers: { Authorization: `Bearer ${token}` } })
+    api.get(`/ratings/${recipeId}`)
       .then(res => setRatingData(res.data))
       .catch(() => {});
   }, [recipeId, token]);
 
   const handleRate = async (rating) => {
     try {
-      const res = await axios.post(`${BASE}/ratings/${recipeId}`, { rating }, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await api.post(`/ratings/${recipeId}`, { rating });
       setRatingData(res.data);
       onRatingUpdate?.(recipeId, res.data.average, res.data.count);
     } catch { /* ignore */ }
@@ -36,18 +33,16 @@ export default function RatingSection({ recipeId, token, onRatingUpdate }) {
           </span>
         )}
       </h3>
-      <div style={{ display: 'flex', gap: '4px', marginBottom: '8px' }}>
+      <div style={{ display: 'flex', marginBottom: '8px' }}>
         {[1, 2, 3, 4, 5].map(star => (
           <button
             key={star}
             onClick={() => handleRate(star)}
             onMouseEnter={() => setHoverRating(star)}
             onMouseLeave={() => setHoverRating(0)}
-            style={{
-              background: 'none', border: 'none', cursor: 'pointer',
-              padding: '4px', display: 'flex', transition: 'transform 0.1s',
-              color: star <= activeStar ? '#f59e0b' : 'var(--text-3)',
-            }}
+            className="icon-btn"
+            aria-label={`Rate ${star} star${star === 1 ? '' : 's'}`}
+            style={{ color: star <= activeStar ? '#f59e0b' : 'var(--text-3)' }}
           >
             <Star size={28} fill={star <= activeStar ? 'currentColor' : 'none'} strokeWidth={1.5} />
           </button>

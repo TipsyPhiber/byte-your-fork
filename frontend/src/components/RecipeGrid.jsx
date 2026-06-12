@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import { Heart, Clock, Star, ShoppingCart, Check, Leaf } from 'lucide-react';
-import { API_BASE } from '../config';
+import { Heart, Clock, Star, ShoppingCart, Check } from 'lucide-react';
+import { api } from '../api';
 import { showToast } from '../utils/toast';
 import { DIETARY_LABELS } from '../utils/dietaryFilter';
 
@@ -22,7 +21,6 @@ function topFlags(flags = [], max = 3) {
   return BADGE_PRIORITY.filter(f => flags.includes(f)).slice(0, max);
 }
 
-const BASE = `${API_BASE}/api`;
 // Inline SVG placeholder — no external CDN dependency, works offline / behind strict CSP.
 const FALLBACK_IMG = "data:image/svg+xml;utf8," + encodeURIComponent(
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400">
@@ -59,11 +57,7 @@ export default function RecipeGrid({ list, favoritedIds, onOpen, onToggleFavorit
     if (!token || addState[recipeId] === 'adding') return;
     setAddState(s => ({ ...s, [recipeId]: 'adding' }));
     try {
-      const res = await axios.post(
-        `${BASE}/shopping-list/from-recipe/${recipeId}`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const res = await api.post(`/shopping-list/from-recipe/${recipeId}`);
       setAddState(s => ({ ...s, [recipeId]: 'added' }));
       setTimeout(() => setAddState(s => { const n = { ...s }; delete n[recipeId]; return n; }), 2000);
       const count = res.data?.count ?? 0;
@@ -102,21 +96,13 @@ export default function RecipeGrid({ list, favoritedIds, onOpen, onToggleFavorit
               </button>
               {token && (
                 <button
+                  className={`card-list-btn ${state === 'added' ? 'added' : ''}`}
                   onClick={e => handleAddToList(e, r.id)}
                   disabled={state === 'adding'}
+                  aria-label="Add to shopping list"
                   title={state === 'added' ? 'Added' : state === 'error' ? 'Failed' : 'Add to shopping list'}
-                  style={{
-                    position: 'absolute', top: 10, right: 48,
-                    width: 30, height: 30, borderRadius: '50%',
-                    background: state === 'added' ? '#22c55e' : 'rgba(255,255,255,0.92)',
-                    color: state === 'added' ? 'white' : '#111827',
-                    border: 'none', cursor: state === 'adding' ? 'wait' : 'pointer',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    boxShadow: '0 2px 6px rgba(0,0,0,0.15)', padding: 0,
-                    transition: 'background 0.2s, color 0.2s',
-                  }}
                 >
-                  {state === 'added' ? <Check size={14} /> : <ShoppingCart size={14} />}
+                  {state === 'added' ? <Check size={16} /> : <ShoppingCart size={16} />}
                 </button>
               )}
             </div>

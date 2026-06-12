@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
-import axios from 'axios';
-import { API_BASE } from '../../config';
+import { api } from '../../api';
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 const MAX_SIZE_MB = 5;
 
-const ProfilePictureCard = ({ user, setUser, token }) => {
+const ProfilePictureCard = ({ user, setUser, token }) => { // eslint-disable-line no-unused-vars -- token still flows; auth lives in the shared api client
   const [preview, setPreview] = useState(user?.avatar_url || null);
   const [message, setMessage] = useState('');
 
@@ -27,9 +26,7 @@ const ProfilePictureCard = ({ user, setUser, token }) => {
     const formData = new FormData();
     formData.append('avatar', file);
     try {
-      const res = await axios.post(`${API_BASE}/api/auth/avatar`, formData, {
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
-      });
+      const res = await api.post('/auth/avatar', formData);
       setUser({ ...user, avatar_url: res.data.avatar_url });
       setMessage('Profile picture updated!');
       setTimeout(() => setMessage(''), 3000);

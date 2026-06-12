@@ -6,10 +6,10 @@ const FALLBACK_IMG = 'https://images.unsplash.com/photo-1495195129352-aec325a55b
 export default function Notifications({ visibleNotifs, onClear, onDismiss, onOpen }) {
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', gap: 12 }}>
         <div>
-          <h2 style={{ margin: 0, color: 'var(--dark-blue)' }}>Notifications</h2>
-          <p style={{ margin: '4px 0 0', color: 'var(--text-light)', fontSize: '0.875rem' }}>
+          <h2 className="screen-title">Notifications</h2>
+          <p className="screen-subtitle">
             Recipes added in the last 30 days
           </p>
         </div>

@@ -16,13 +16,13 @@ export default function Dashboard({ recipes, user, favoritedIds, onOpen, onToggl
 
   return (
     <div>
-      <div style={{ marginBottom: '24px' }}>
-        <h2 style={{ margin: 0, color: 'var(--dark-blue)' }}>
-          {user?.preferences?.length > 0 ? 'Recommended For You' : 'Top Rated Recipes'}
+      <div className="screen-header">
+        <h2 className="screen-title">
+          {user?.first_name ? `Hi ${user.first_name} 👋` : 'Welcome'}
         </h2>
-        <p style={{ margin: '6px 0 0', color: 'var(--text-light)', fontSize: '0.9rem' }}>
+        <p className="screen-subtitle">
           {user?.preferences?.length > 0
-            ? `Based on your ${user.preferences.join(', ')} preferences, sorted by rating`
+            ? `Picked for your ${user.preferences.join(', ')} taste, sorted by rating`
             : 'The highest rated recipes across all cuisines'}
         </p>
       </div>

@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import axios from 'axios';
-import { API_BASE } from '../../config';
+import { api } from '../../api';
 
-const PasswordCard = ({ token }) => {
+const PasswordCard = ({ token }) => { // eslint-disable-line no-unused-vars -- token still flows; auth lives in the shared api client
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [message, setMessage] = useState('');
@@ -11,10 +10,7 @@ const PasswordCard = ({ token }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.put(`${API_BASE}/api/auth/update-password`,
-        { currentPassword, newPassword },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await api.put('/auth/update-password', { currentPassword, newPassword });
       setMessage('Password updated successfully!');
       setError('');
       setCurrentPassword('');

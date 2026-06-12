@@ -126,7 +126,7 @@ router.post('/verify-email', authLimiter, byUserId, async (req, res) => {
     await pool.query('UPDATE email_verification_codes SET used = TRUE WHERE id = $1', [result.rows[0].id]);
     await pool.query('INSERT INTO verified_users (user_id) VALUES ($1) ON CONFLICT DO NOTHING', [userId]);
 
-    const token = jwt.sign({ id: userId }, process.env.JWT_SECRET, { expiresIn: '30m' });
+    const token = jwt.sign({ id: userId }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '30m' });
     res.json({ token });
   } catch (err) {
     console.error(err);
@@ -255,7 +255,7 @@ router.post('/login', authLimiter, async (req, res) => {
       return res.status(403).json({ error: 'Please verify your email before logging in.', userId: user.rows[0].id, unverified: true });
     }
 
-    const token = jwt.sign({ id: user.rows[0].id }, process.env.JWT_SECRET, { expiresIn: '30m' });
+    const token = jwt.sign({ id: user.rows[0].id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '30m' });
     res.json({ token });
   } catch (err) {
     console.error(err);

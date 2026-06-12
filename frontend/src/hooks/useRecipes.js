@@ -1,8 +1,6 @@
 import { useState, useCallback } from 'react';
-import axios from 'axios';
-import { API_BASE, normalizeRowImage } from '../config';
-
-const BASE = `${API_BASE}/api`;
+import { api } from '../api';
+import { normalizeRowImage } from '../config';
 
 export function useRecipes(token) {
   const [recipes, setRecipes] = useState([]);
@@ -10,7 +8,7 @@ export function useRecipes(token) {
 
   const fetchRecipes = useCallback(async () => {
     try {
-      const res = await axios.get(`${BASE}/recipes`);
+      const res = await api.get('/recipes');
       setRecipes(res.data.map(normalizeRowImage));
     } catch (err) {
       console.error('Fetch error', err);
@@ -19,10 +17,10 @@ export function useRecipes(token) {
 
   const openRecipe = useCallback(async (id) => {
     try {
-      const res = await axios.get(`${BASE}/recipes/${id}`);
+      const res = await api.get(`/recipes/${id}`);
       setSelectedRecipe(normalizeRowImage(res.data));
       if (token) {
-        axios.post(`${BASE}/recipes/${id}/view`, {}, { headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
+        api.post(`/recipes/${id}/view`).catch(() => {});
       }
     } catch { /* ignore */ }
   }, [token]);

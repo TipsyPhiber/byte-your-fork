@@ -34,9 +34,9 @@ export default function Explore({ recipes, favoritedIds, onOpen, onToggleFavorit
         <SearchBar onSelect={onOpen} />
       </div>
 
-      <div style={{ marginBottom: '20px' }}>
-        <h2 style={{ margin: 0, color: 'var(--dark-blue)' }}>Explore</h2>
-        <p style={{ margin: '4px 0 0', color: 'var(--text-light)', fontSize: '0.875rem' }}>
+      <div className="screen-header">
+        <h2 className="screen-title">Explore</h2>
+        <p className="screen-subtitle">
           {filteredRecipes.length} {filteredRecipes.length === 1 ? 'recipe' : 'recipes'}
           {activeTag !== 'All' ? ` in ${activeTag}` : ' across all cuisines'}
         </p>
