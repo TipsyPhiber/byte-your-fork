@@ -103,13 +103,15 @@ export async function speak(text, { rate = 0.88, pitch = 1, voiceURI } = {}) {
     await TextToSpeech.stop().catch(() => {});
     const voiceObj = voiceURI ? nativeVoices.find(v => (v.voiceURI || '') === voiceURI) : null;
     const idx = voiceObj ? voiceObj.originalIndex : -1;
+    const lang = voiceObj ? voiceObj.lang : 'en-US';
     speakingNow = true;
     // Plugin resolves when playback finishes.
     await TextToSpeech.speak({
       text,
-      lang: 'en-US',
+      lang,
       rate,
       pitch,
+      queueStrategy: 1, // Stop previous speech and speak immediately
       ...(idx >= 0 ? { voice: idx } : {}),
     }).catch(() => {});
     speakingNow = false;
