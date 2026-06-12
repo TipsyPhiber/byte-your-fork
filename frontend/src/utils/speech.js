@@ -19,19 +19,63 @@ export async function loadVoices() {
   if (isNative) {
     try {
       const { voices } = await TextToSpeech.getSupportedVoices();
-      nativeVoices = (voices || []).filter(v => (v.lang || '').startsWith('en'));
-      return nativeVoices.map((v, i) => ({
-        voiceURI: v.voiceURI || `native-${i}`,
-        name: v.name || v.voiceURI || `Voice ${i + 1}`,
+      
+      // Store the original index to match native plugin indexing properly
+      const mapped = (voices || []).map((v, originalIndex) => ({
+        voiceURI: v.voiceURI || `native-${originalIndex}`,
+        name: v.name || v.voiceURI || `Voice ${originalIndex + 1}`,
         lang: v.lang || 'en',
+        originalIndex,
       }));
+
+      // Filter: English only, and deduplicate by name
+      const seen = new Set();
+      const uniqueVoices = [];
+      for (const v of mapped) {
+        if (!v.lang.toLowerCase().startsWith('en')) continue;
+        const normName = v.name.trim().toLowerCase();
+        if (!normName || seen.has(normName)) continue;
+        seen.add(normName);
+        uniqueVoices.push(v);
+      }
+
+      // Sort Google/premium voices to the top
+      const getPriority = (name) => {
+        const lower = name.toLowerCase();
+        if (lower.includes('google')) return 3;
+        if (lower.includes('natural') || lower.includes('premium')) return 2;
+        if (lower.includes('local') || lower.includes('device')) return 1;
+        return 0;
+      };
+      uniqueVoices.sort((a, b) => getPriority(b.name) - getPriority(a.name));
+
+      nativeVoices = uniqueVoices;
+      return nativeVoices;
     } catch {
       return [];
     }
   }
-  return window.speechSynthesis.getVoices()
-    .filter(v => v.lang.startsWith('en'))
-    .map(v => ({ voiceURI: v.voiceURI, name: v.name, lang: v.lang }));
+
+  const voices = window.speechSynthesis.getVoices().filter(v => v.lang.startsWith('en'));
+  const seen = new Set();
+  const uniqueVoices = [];
+  for (const v of voices) {
+    const normName = (v.name || v.voiceURI || '').trim().toLowerCase();
+    if (!normName || seen.has(normName)) continue;
+    seen.add(normName);
+    uniqueVoices.push(v);
+  }
+
+  const getPriority = (name) => {
+    const lower = (name || '').toLowerCase();
+    if (lower.includes('google')) return 3;
+    if (lower.includes('natural') || lower.includes('premium')) return 2;
+    if (lower.includes('local') || lower.includes('device')) return 1;
+    return 0;
+  };
+  uniqueVoices.sort((a, b) => getPriority(b.name) - getPriority(a.name));
+
+  return uniqueVoices.map(v => ({ voiceURI: v.voiceURI, name: v.name, lang: v.lang }));
 }
 
 // Subscribe to async voice availability (web only — native loads synchronously
@@ -57,7 +101,8 @@ export function isTtsAudible(graceMs = 800) {
 export async function speak(text, { rate = 0.88, pitch = 1, voiceURI } = {}) {
   if (isNative) {
     await TextToSpeech.stop().catch(() => {});
-    const idx = voiceURI ? nativeVoices.findIndex(v => (v.voiceURI || '') === voiceURI) : -1;
+    const voiceObj = voiceURI ? nativeVoices.find(v => (v.voiceURI || '') === voiceURI) : null;
+    const idx = voiceObj ? voiceObj.originalIndex : -1;
     speakingNow = true;
     // Plugin resolves when playback finishes.
     await TextToSpeech.speak({
