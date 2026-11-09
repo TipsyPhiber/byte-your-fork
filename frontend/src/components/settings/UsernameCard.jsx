@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import axios from 'axios';
-import { API_BASE } from '../../config';
+import { api } from '../../api';
 
-const UsernameCard = ({ user, setUser, token }) => {
+const UsernameCard = ({ user, setUser, token }) => { // eslint-disable-line no-unused-vars -- token still flows; auth lives in the shared api client
   const [username, setUsername] = useState(user?.username || '');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -10,10 +9,7 @@ const UsernameCard = ({ user, setUser, token }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.put(`${API_BASE}/api/auth/update-username`,
-        { username },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await api.put('/auth/update-username', { username });
       setUser({ ...user, username });
       setMessage('Username updated successfully!');
       setError('');

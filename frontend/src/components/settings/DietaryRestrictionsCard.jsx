@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import axios from 'axios';
-import { API_BASE } from '../../config';
+import { api } from '../../api';
 
 const RESTRICTIONS = [
   { flag: 'dairy_free',     label: 'Lactose / Dairy-free', desc: 'Hide recipes with milk, butter, cheese, cream, yogurt' },
@@ -12,7 +11,7 @@ const RESTRICTIONS = [
   { flag: 'vegan',          label: 'Vegan',                desc: 'Hide recipes with any animal products' },
 ];
 
-export default function DietaryRestrictionsCard({ user, setUser, token }) {
+export default function DietaryRestrictionsCard({ user, setUser, token }) { // eslint-disable-line no-unused-vars -- token still flows; auth lives in the shared api client
   const userRestrictions = user?.dietary_restrictions;
   const [selected, setSelected] = useState(userRestrictions || []);
   const [lastSyncedRestrictions, setLastSyncedRestrictions] = useState(userRestrictions);
@@ -29,11 +28,7 @@ export default function DietaryRestrictionsCard({ user, setUser, token }) {
 
   const handleSave = async () => {
     try {
-      const res = await axios.put(
-        `${API_BASE}/api/auth/dietary-restrictions`,
-        { restrictions: selected },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const res = await api.put('/auth/dietary-restrictions', { restrictions: selected });
       setUser({ ...user, dietary_restrictions: res.data.restrictions });
       setMessage('Saved.');
       setTimeout(() => setMessage(''), 2000);

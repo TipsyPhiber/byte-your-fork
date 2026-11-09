@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { applyStatusBarTheme } from '../native';
 
 export function useDarkMode() {
   const [dark, setDark] = useState(() => {
@@ -11,6 +12,7 @@ export function useDarkMode() {
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
     localStorage.setItem('theme', dark ? 'dark' : 'light');
+    applyStatusBarTheme(dark);
   }, [dark]);
 
   return [dark, setDark];

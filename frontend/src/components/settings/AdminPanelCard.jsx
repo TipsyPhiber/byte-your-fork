@@ -1,14 +1,13 @@
 import React, { useState } from 'react';
-import axios from 'axios';
-import { API_BASE } from '../../config';
+import { api } from '../../api';
 
-const AdminPanelCard = ({ token }) => {
+const AdminPanelCard = ({ token }) => { // eslint-disable-line no-unused-vars -- token still flows; auth lives in the shared api client
   const [username, setUsername] = useState('');
   const [message, setMessage] = useState('');
 
   const handleSetAdmin = async (makeAdmin) => {
     try {
-      const res = await axios.post(`${API_BASE}/api/auth/admin/set-role`, { username, makeAdmin }, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await api.post('/auth/admin/set-role', { username, makeAdmin });
       setMessage(res.data.message);
       setUsername('');
     } catch (err) {

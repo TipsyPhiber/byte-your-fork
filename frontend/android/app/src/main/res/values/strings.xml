@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Byte Your Fork</string>
+    <string name="title_activity_main">Byte Your Fork</string>
+    <string name="package_name">com.byteyourfork.app</string>
+    <string name="custom_url_scheme">com.byteyourfork.app</string>
+</resources>

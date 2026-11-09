@@ -63,7 +63,8 @@ export default function EditRecipeForm({ editForm, setEditForm, onSave, onCancel
             />
             <button
               onClick={() => setEditForm({ ...editForm, ingredients: editForm.ingredients.filter((_, j) => j !== i) })}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', display: 'flex', alignItems: 'center', padding: '6px', borderRadius: '6px', flexShrink: 0, transition: 'color 0.15s' }}
+              className="icon-btn danger"
+              aria-label="Remove ingredient"
             >
               <Trash2 size={16} />
             </button>
@@ -85,7 +86,8 @@ export default function EditRecipeForm({ editForm, setEditForm, onSave, onCancel
             />
             <button
               onClick={() => setEditForm({ ...editForm, steps: editForm.steps.filter((_, j) => j !== i) })}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', display: 'flex', alignItems: 'center', padding: '6px', borderRadius: '6px', flexShrink: 0, paddingTop: '12px', transition: 'color 0.15s' }}
+              className="icon-btn danger"
+              aria-label="Remove step"
             >
               <Trash2 size={16} />
             </button>

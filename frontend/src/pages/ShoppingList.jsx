@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
-import { API_BASE } from '../config';
-import { ShoppingCart, Plus, Trash2, Check, Send, Mail, Share2, Printer, Store, CheckSquare, Square } from 'lucide-react';
-
-const BASE = `${API_BASE}/api`;
+import { api } from '../api';
+import { isNative } from '../native';
+import { showToast } from '../utils/toast';
+import { ShoppingCart, Plus, Trash2, Check, Send, Mail, Share2, Printer, Store, CheckSquare } from 'lucide-react';
 
 export default function ShoppingList({ token }) {
   const [items, setItems] = useState([]);
@@ -21,7 +20,11 @@ export default function ShoppingList({ token }) {
       if (sendMenuRef.current && !sendMenuRef.current.contains(e.target)) setSendOpen(false);
     };
     document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    document.addEventListener('touchstart', handler, { passive: true });
+    return () => {
+      document.removeEventListener('mousedown', handler);
+      document.removeEventListener('touchstart', handler);
+    };
   }, [sendOpen]);
 
   useEffect(() => {
@@ -32,7 +35,7 @@ export default function ShoppingList({ token }) {
 
   useEffect(() => {
     if (!token) return;
-    axios.get(`${BASE}/shopping-list`, { headers: { Authorization: `Bearer ${token}` } })
+    api.get('/shopping-list')
       .then(res => setItems(res.data))
       .catch(() => { /* fetch failed; leave items as-is */ })
       .finally(() => setLoading(false));
@@ -44,14 +47,10 @@ export default function ShoppingList({ token }) {
     if (!name || adding) return;
     setAdding(true);
     try {
-      const res = await axios.post(
-        `${BASE}/shopping-list`,
-        { ingredient_name: name },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const res = await api.post('/shopping-list', { ingredient_name: name });
       setItems(prev => [res.data, ...prev]);
       setNewItem('');
-    } catch { alert('Could not add item.'); }
+    } catch { showToast({ kind: 'error', message: 'Could not add item.' }); }
     finally { setAdding(false); }
   };
 
@@ -59,11 +58,7 @@ export default function ShoppingList({ token }) {
     const next = !item.checked;
     setItems(prev => prev.map(i => i.id === item.id ? { ...i, checked: next } : i));
     try {
-      await axios.patch(
-        `${BASE}/shopping-list/${item.id}`,
-        { checked: next },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await api.patch(`/shopping-list/${item.id}`, { checked: next });
     } catch {
       setItems(prev => prev.map(i => i.id === item.id ? { ...i, checked: item.checked } : i));
     }
@@ -73,7 +68,7 @@ export default function ShoppingList({ token }) {
     const prev = items;
     setItems(p => p.filter(i => i.id !== item.id));
     try {
-      await axios.delete(`${BASE}/shopping-list/${item.id}`, { headers: { Authorization: `Bearer ${token}` } });
+      await api.delete(`/shopping-list/${item.id}`);
     } catch { setItems(prev); }
   };
 
@@ -84,7 +79,7 @@ export default function ShoppingList({ token }) {
     const prev = items;
     setItems(p => p.filter(i => !i.checked));
     try {
-      await axios.delete(`${BASE}/shopping-list?checked=true`, { headers: { Authorization: `Bearer ${token}` } });
+      await api.delete('/shopping-list?checked=true');
     } catch { setItems(prev); }
   };
 
@@ -124,11 +119,7 @@ export default function ShoppingList({ token }) {
     setSendOpen(false);
     if (unchecked.length === 0) { setSendStatus({ kind: 'error', msg: 'Nothing to send — your unchecked list is empty.' }); return; }
     try {
-      const res = await axios.post(
-        `${BASE}/shopping-list/email`,
-        { onlyUnchecked: true },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const res = await api.post('/shopping-list/email', { onlyUnchecked: true });
       setSendStatus({ kind: 'success', msg: `Emailed ${res.data.count} item${res.data.count === 1 ? '' : 's'} to ${res.data.sentTo}.` });
     } catch (err) {
       setSendStatus({ kind: 'error', msg: err.response?.data?.error || 'Could not send email.' });
@@ -171,11 +162,7 @@ export default function ShoppingList({ token }) {
     const prev = items;
     setItems(p => p.map(i => ids.includes(i.id) ? { ...i, checked } : i));
     try {
-      await axios.post(
-        `${BASE}/shopping-list/bulk-check`,
-        { ids, checked },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await api.post('/shopping-list/bulk-check', { ids, checked });
     } catch {
       setItems(prev);
     }
@@ -185,11 +172,7 @@ export default function ShoppingList({ token }) {
     setSendOpen(false);
     if (unchecked.length === 0) { setSendStatus({ kind: 'error', msg: 'Your list is empty.' }); return; }
     try {
-      const res = await axios.post(
-        `${BASE}/shopping-list/instacart`,
-        { onlyUnchecked: true },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const res = await api.post('/shopping-list/instacart', { onlyUnchecked: true });
       if (res.data.url) {
         window.open(res.data.url, '_blank', 'noopener,noreferrer');
         setSendStatus({ kind: 'success', msg: `Opened Instacart with ${res.data.count} item${res.data.count === 1 ? '' : 's'}.` });
@@ -240,7 +223,7 @@ export default function ShoppingList({ token }) {
               <SendMenuItem icon={<Store size={15} />} label="Send to Instacart" sub="Costco, Wegmans, Aldi & more" onClick={handleInstacart} />
               <SendMenuItem icon={<Mail size={15} />} label="Email me the list" onClick={handleEmail} />
               <SendMenuItem icon={<Share2 size={15} />} label="Share / Copy" onClick={handleShare} />
-              <SendMenuItem icon={<Printer size={15} />} label="Print" onClick={handlePrint} />
+              {!isNative && <SendMenuItem icon={<Printer size={15} />} label="Print" onClick={handlePrint} />}
             </div>
           )}
         </div>
@@ -295,7 +278,7 @@ export default function ShoppingList({ token }) {
           onChange={e => setNewItem(e.target.value)}
           placeholder="Add an item..."
           maxLength={200}
-          style={{ flex: 1, padding: '10px 14px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-1)', fontSize: '0.95rem', fontFamily: 'inherit' }}
+          style={{ flex: 1, padding: '10px 14px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-1)', fontSize: '1rem', fontFamily: 'inherit' }}
         />
         <button
           type="submit"
@@ -340,13 +323,15 @@ export default function ShoppingList({ token }) {
                     >
                       <CheckSquare size={12} /> Check all
                     </button>
-                    <button
-                      onClick={() => printGroup(group)}
-                      title="Print this recipe's list"
-                      style={{ background: 'none', border: '1px solid var(--border)', color: 'var(--text-2)', padding: '3px 8px', borderRadius: 6, cursor: 'pointer', fontSize: '0.72rem', fontWeight: 600, fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 4 }}
-                    >
-                      <Printer size={12} /> Print
-                    </button>
+                    {!isNative && (
+                      <button
+                        onClick={() => printGroup(group)}
+                        title="Print this recipe's list"
+                        style={{ background: 'none', border: '1px solid var(--border)', color: 'var(--text-2)', padding: '3px 8px', borderRadius: 6, cursor: 'pointer', fontSize: '0.72rem', fontWeight: 600, fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 4 }}
+                      >
+                        <Printer size={12} /> Print
+                      </button>
+                    )}
                   </div>
                 </div>
                 <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -389,7 +374,7 @@ function SendMenuItem({ icon, label, sub, onClick }) {
     <button
       onClick={onClick}
       style={{
-        display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
+        display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', minHeight: 'var(--tap-min, 44px)',
         background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer',
         borderRadius: 8, color: 'var(--text-1)', fontSize: '0.88rem', fontWeight: 600,
         fontFamily: 'inherit'
@@ -408,7 +393,7 @@ function SendMenuItem({ icon, label, sub, onClick }) {
 
 function ShoppingItem({ item, onToggle, onRemove, hideSource }) {
   return (
-    <li style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 10, background: 'var(--surface)', border: '1px solid var(--border)' }}>
+    <li style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 8px 11px 14px', minHeight: 'var(--tap-min, 44px)', borderRadius: 10, background: 'var(--surface)', border: '1px solid var(--border)' }}>
       <button
         onClick={() => onToggle(item)}
         aria-label={item.checked ? 'Uncheck' : 'Check off'}
@@ -439,7 +424,8 @@ function ShoppingItem({ item, onToggle, onRemove, hideSource }) {
       <button
         onClick={() => onRemove(item)}
         aria-label="Remove"
-        style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', padding: 6, borderRadius: 6, display: 'flex', alignItems: 'center' }}
+        className="icon-btn danger"
+        style={{ margin: '-11px 0' }}
       >
         <Trash2 size={15} />
       </button>

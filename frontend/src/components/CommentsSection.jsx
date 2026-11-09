@@ -1,17 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import { API_BASE } from '../config';
+import { api } from '../api';
 import { X } from 'lucide-react';
 
-const BASE = `${API_BASE}/api`;
-
-export default function CommentsSection({ recipeId, token, user, isAdmin }) {
+export default function CommentsSection({ recipeId, token, user, isAdmin }) { // eslint-disable-line no-unused-vars -- token still flows; auth lives in the shared api client
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
 
   useEffect(() => {
     if (!recipeId) return;
-    axios.get(`${BASE}/comments/${recipeId}`)
+    api.get(`/comments/${recipeId}`)
       .then(res => setComments(res.data))
       .catch(() => {});
   }, [recipeId]);
@@ -20,7 +17,7 @@ export default function CommentsSection({ recipeId, token, user, isAdmin }) {
     e.preventDefault();
     if (!newComment.trim()) return;
     try {
-      const res = await axios.post(`${BASE}/comments/${recipeId}`, { text: newComment }, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await api.post(`/comments/${recipeId}`, { text: newComment });
       setComments(prev => [res.data, ...prev]);
       setNewComment('');
     } catch { /* ignore */ }
@@ -28,7 +25,7 @@ export default function CommentsSection({ recipeId, token, user, isAdmin }) {
 
   const handleDelete = async (commentId) => {
     try {
-      await axios.delete(`${BASE}/comments/${commentId}`, { headers: { Authorization: `Bearer ${token}` } });
+      await api.delete(`/comments/${commentId}`);
       setComments(prev => prev.filter(c => c.id !== commentId));
     } catch { /* ignore */ }
   };
@@ -66,8 +63,10 @@ export default function CommentsSection({ recipeId, token, user, isAdmin }) {
               {(user?.id === c.user_id || isAdmin) && (
                 <button
                   onClick={() => handleDelete(c.id)}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', display: 'flex', alignItems: 'center', padding: '2px', borderRadius: '4px', transition: 'color 0.15s' }}
+                  className="icon-btn danger"
+                  style={{ margin: '-12px -12px -12px 0' }}
                   title="Delete comment"
+                  aria-label="Delete comment"
                 >
                   <X size={14} />
                 </button>

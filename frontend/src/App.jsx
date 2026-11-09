@@ -1,10 +1,11 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import React, { useEffect, useCallback } from 'react';
-import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { App as CapApp } from '@capacitor/app';
 import './App.css';
-import { API_BASE } from './config';
+import { api } from './api';
 
+import { useAndroidBack } from './hooks/useAndroidBack';
 import { useAuth } from './hooks/useAuth';
 import { useDarkMode } from './hooks/useDarkMode';
 import { useRecipes } from './hooks/useRecipes';
@@ -28,23 +29,31 @@ import Favorites from './pages/Favorites';
 import Notifications from './pages/Notifications';
 import ShoppingList from './pages/ShoppingList';
 
-const BASE = `${API_BASE}/api`;
-
 function App() {
   const { token, user, setUser, login, logout } = useAuth();
   const [dark, setDark] = useDarkMode();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const { recipes, selectedRecipe, fetchRecipes, openRecipe, closeRecipe, updateRecipeRating } = useRecipes(token);
   const { favoritedIds, favoriteRecipes, fetchFavorites, toggleFavorite } = useFavorites(token);
   const { visibleNotifs, setClearedAt, fetchNotifications, handleClearNotifications, handleDismissNotification } = useNotifications(token);
+
+  // Android hardware back button: dismiss an open recipe first, then walk back
+  // through history, and only minimize the app (not hard-close) at the root.
+  const handleAndroidBack = useCallback(({ canGoBack }) => {
+    if (selectedRecipe) { closeRecipe(); return; }
+    if (canGoBack && location.pathname !== '/') { navigate(-1); return; }
+    CapApp.minimizeApp();
+  }, [selectedRecipe, closeRecipe, location.pathname, navigate]);
+  useAndroidBack(handleAndroidBack);
 
   useEffect(() => {
     if (!token) return;
     let mounted = true;
     async function init() {
       try {
-        const res = await axios.get(`${BASE}/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
+        const res = await api.get('/auth/me');
         if (!mounted) return;
         setUser(res.data);
         setClearedAt(res.data.notifications_cleared_at || null);
@@ -65,12 +74,12 @@ function App() {
 
   const handleDelete = useCallback(async (id) => {
     try {
-      await axios.delete(`${BASE}/recipes/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+      await api.delete(`/recipes/${id}`);
       closeRecipe();
       fetchRecipes();
       fetchFavorites();
     } catch { /* silently fail — modal already shows error state */ }
-  }, [token, closeRecipe, fetchRecipes, fetchFavorites]);
+  }, [closeRecipe, fetchRecipes, fetchFavorites]);
 
   const handleLogout = useCallback(() => { logout(); navigate('/'); }, [logout, navigate]);
   const isAdmin = user?.role === 'admin';

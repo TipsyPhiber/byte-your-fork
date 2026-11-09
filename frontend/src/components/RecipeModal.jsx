@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import axios from 'axios';
-import { API_BASE } from '../config';
+import { api } from '../api';
+import { isNative } from '../native';
 import CookMode from '../CookMode';
 import EditRecipeForm from './EditRecipeForm';
 import RatingSection from './RatingSection';
@@ -29,7 +29,6 @@ const FALLBACK_IMG = "data:image/svg+xml;utf8," + encodeURIComponent(
     <text x="300" y="345" font-family="system-ui,sans-serif" font-size="18" fill="#94a3b8" text-anchor="middle">No image</text>
   </svg>`
 );
-const BASE = `${API_BASE}/api`;
 
 export default function RecipeModal({ recipe, token, user, isAdmin, favoritedIds, onClose, onToggleFavorite, onDelete, onRatingUpdate, onRecipeSaved }) {
   const [cookMode, setCookMode] = useState(false);
@@ -56,11 +55,7 @@ export default function RecipeModal({ recipe, token, user, isAdmin, favoritedIds
         ingredient_name: ing.name,
         amount: scaleAmount(ing.amount, scale),
       }));
-      const res = await axios.post(
-        `${BASE}/shopping-list/bulk`,
-        { items, recipe_id: recipe.id },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const res = await api.post('/shopping-list/bulk', { items, recipe_id: recipe.id });
       setAddToListState('added');
       setTimeout(() => setAddToListState('idle'), 2000);
       const count = res.data?.items?.length ?? items.length;
@@ -87,29 +82,25 @@ export default function RecipeModal({ recipe, token, user, isAdmin, favoritedIds
         .map(s => (s || '').trim())
         .filter(Boolean)
         .map(s => /[.!?:]$/.test(s) ? s : `${s}.`);
-      await axios.put(
-        `${BASE}/recipes/${recipe.id}`,
-        {
-          title: editForm.title,
-          ttc: parseInt(editForm.ttc),
-          ingredients: editForm.ingredients,
-          steps: normalizedSteps,
-          imageUrl: editForm.imageUrl ?? '',
-          tag: editForm.tag ?? '',
-          dietary_flags: editForm.dietary_flags ?? [],
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await api.put(`/recipes/${recipe.id}`, {
+        title: editForm.title,
+        ttc: parseInt(editForm.ttc),
+        ingredients: editForm.ingredients,
+        steps: normalizedSteps,
+        imageUrl: editForm.imageUrl ?? '',
+        tag: editForm.tag ?? '',
+        dietary_flags: editForm.dietary_flags ?? [],
+      });
       setEditForm(null);
       onRecipeSaved?.();
     } catch (err) {
       const msg = err.response?.data?.error || err.message || 'Unknown error';
       console.error('Save failed:', err);
-      alert(`Save failed: ${msg}`);
+      showToast({ kind: 'error', message: `Save failed: ${msg}`, duration: 6000 });
     }
   };
 
-  if (cookMode) return <CookMode recipe={recipe} token={token} scale={scale} onExit={() => setCookMode(false)} />;
+  if (cookMode) return <CookMode recipe={recipe} scale={scale} onExit={() => setCookMode(false)} />;
 
   const isFavorited = favoritedIds.has(recipe.id);
 
@@ -146,7 +137,7 @@ export default function RecipeModal({ recipe, token, user, isAdmin, favoritedIds
       </div>
       <div className="modal-content" onClick={e => e.stopPropagation()}>
         <button className="modal-close-btn" onClick={onClose} aria-label="Close">
-          <X size={16} />
+          <X size={18} />
         </button>
 
         {editForm ? (
@@ -158,51 +149,38 @@ export default function RecipeModal({ recipe, token, user, isAdmin, favoritedIds
 
               {/* Delete confirmation banner */}
               {confirmDelete && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', background: 'var(--danger-dim)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '10px', padding: '12px 16px', marginBottom: '20px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', background: 'var(--danger-dim)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '10px', padding: '12px 16px', marginBottom: '20px', flexWrap: 'wrap' }}>
                   <AlertTriangle size={18} color="var(--danger)" style={{ flexShrink: 0 }} />
-                  <span style={{ flex: 1, fontSize: '0.875rem', fontWeight: 600, color: 'var(--danger)' }}>Delete this recipe? This cannot be undone.</span>
-                  <button onClick={() => onDelete(recipe.id)} style={{ background: 'var(--danger)', color: 'white', border: 'none', padding: '6px 14px', borderRadius: '6px', cursor: 'pointer', fontWeight: 700, fontSize: '0.8rem', fontFamily: 'inherit' }}>Delete</button>
-                  <button onClick={() => setConfirmDelete(false)} style={{ background: 'none', border: '1px solid var(--border)', color: 'var(--text-2)', padding: '6px 14px', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, fontSize: '0.8rem', fontFamily: 'inherit' }}>Cancel</button>
+                  <span style={{ flex: 1, fontSize: '0.875rem', fontWeight: 600, color: 'var(--danger)', minWidth: 160 }}>Delete this recipe? This cannot be undone.</span>
+                  <button onClick={() => onDelete(recipe.id)} style={{ background: 'var(--danger)', color: 'white', border: 'none', padding: '10px 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem', fontFamily: 'inherit', minHeight: 44 }}>Delete</button>
+                  <button onClick={() => setConfirmDelete(false)} style={{ background: 'none', border: '1px solid var(--border)', color: 'var(--text-2)', padding: '10px 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem', fontFamily: 'inherit', minHeight: 44 }}>Cancel</button>
                 </div>
               )}
 
               <div className="modal-title-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-                <h1 className="modal-recipe-title" style={{ fontSize: '2.2rem', fontWeight: 800, color: 'var(--text-1)', margin: 0, lineHeight: 1.15, letterSpacing: '-0.02em' }}>
+                <h1 className="modal-recipe-title" style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--text-1)', margin: 0, lineHeight: 1.15, letterSpacing: '-0.02em' }}>
                   {recipe.title}
                 </h1>
-                <div style={{ display: 'flex', gap: '8px', flexShrink: 0, marginLeft: '20px', paddingTop: '6px', alignItems: 'center' }}>
-                  <button
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: isFavorited ? 'var(--danger)' : 'var(--text-2)', display: 'flex', alignItems: 'center', padding: '6px', borderRadius: '8px', transition: 'color 0.2s' }}
-                    onClick={e => onToggleFavorite(e, recipe.id)}
-                    title={isFavorited ? 'Unfavorite' : 'Save to Favorites'}
-                  >
-                    <Heart size={22} fill={isFavorited ? 'currentColor' : 'none'} />
-                  </button>
-                  <button
-                    onClick={() => window.print()}
-                    title="Print recipe"
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-2)', display: 'flex', alignItems: 'center', padding: '6px', borderRadius: '8px' }}
-                  >
-                    <Printer size={20} />
-                  </button>
-                  <button className="primary-button" style={{ padding: '9px 18px', fontSize: '0.875rem' }} onClick={() => setCookMode(true)}>
-                    <ChefHat size={16} /> Cook Mode
-                  </button>
-                  {isAdmin && (
-                    <>
-                      <button className="tag-pill" style={{ display: 'flex', alignItems: 'center', gap: '5px' }} onClick={() => setEditForm({ title: recipe.title, ttc: recipe.ttc, ingredients: recipe.ingredients || [], steps: recipe.steps || [], imageUrl: recipe.image_url || '', tag: recipe.tag || '', dietary_flags: recipe.dietary_flags || [] })}>
-                        <Pencil size={13} /> Edit
+                {(isAdmin || !isNative) && (
+                  <div style={{ display: 'flex', gap: '4px', flexShrink: 0, marginLeft: '20px', alignItems: 'center' }}>
+                    {/* No print dialog inside the Android webview — web only */}
+                    {!isNative && (
+                      <button className="icon-btn" onClick={() => window.print()} title="Print recipe" aria-label="Print recipe">
+                        <Printer size={20} />
                       </button>
-                      <button
-                        className="tag-pill"
-                        style={{ background: confirmDelete ? 'var(--danger)' : 'var(--danger-dim)', color: confirmDelete ? 'white' : 'var(--danger)', borderColor: 'rgba(239,68,68,0.3)', display: 'flex', alignItems: 'center', gap: '5px' }}
-                        onClick={() => setConfirmDelete(true)}
-                      >
-                        <Trash2 size={13} /> Delete
-                      </button>
-                    </>
-                  )}
-                </div>
+                    )}
+                    {isAdmin && (
+                      <>
+                        <button className="icon-btn" title="Edit recipe" aria-label="Edit recipe" onClick={() => setEditForm({ title: recipe.title, ttc: recipe.ttc, ingredients: recipe.ingredients || [], steps: recipe.steps || [], imageUrl: recipe.image_url || '', tag: recipe.tag || '', dietary_flags: recipe.dietary_flags || [] })}>
+                          <Pencil size={18} />
+                        </button>
+                        <button className="icon-btn danger" title="Delete recipe" aria-label="Delete recipe" onClick={() => setConfirmDelete(true)}>
+                          <Trash2 size={18} />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="recipe-meta">
@@ -215,7 +193,7 @@ export default function RecipeModal({ recipe, token, user, isAdmin, favoritedIds
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', margin: '4px 0 16px' }}>
                   {recipe.dietary_flags.map(f => (
                     <span key={f} style={{
-                      fontSize: '0.72rem', fontWeight: 700, padding: '3px 10px',
+                      fontSize: '0.72rem', fontWeight: 700, padding: '4px 10px',
                       borderRadius: 999, background: 'rgba(16,185,129,0.12)', color: '#047857',
                     }}>
                       {DIETARY_LABELS[f] || f}
@@ -228,15 +206,15 @@ export default function RecipeModal({ recipe, token, user, isAdmin, favoritedIds
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '12px', flexWrap: 'wrap' }}>
                     <h3 className="recipe-section-title" style={{ margin: 0 }}>Ingredients</h3>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--surface-2, rgba(0,0,0,0.04))', border: '1px solid var(--border)', borderRadius: '999px', padding: '4px 6px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '2px', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: '999px', padding: '2px 6px' }}>
                       <Users size={14} style={{ color: 'var(--text-2)', marginLeft: '4px' }} />
                       <button
                         onClick={() => adjustServings(-1)}
                         disabled={servings <= MIN_SERVINGS}
                         aria-label="Decrease servings"
-                        style={{ background: 'none', border: 'none', cursor: servings <= MIN_SERVINGS ? 'not-allowed' : 'pointer', color: 'var(--text-1)', display: 'flex', alignItems: 'center', padding: '4px', borderRadius: '999px', opacity: servings <= MIN_SERVINGS ? 0.4 : 1 }}
+                        style={{ background: 'none', border: 'none', cursor: servings <= MIN_SERVINGS ? 'not-allowed' : 'pointer', color: 'var(--text-1)', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 38, height: 38, borderRadius: '999px', opacity: servings <= MIN_SERVINGS ? 0.4 : 1 }}
                       >
-                        <Minus size={14} />
+                        <Minus size={15} />
                       </button>
                       <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-1)', minWidth: '70px', textAlign: 'center' }}>
                         {servings} {servings === 1 ? 'serving' : 'servings'}
@@ -245,54 +223,31 @@ export default function RecipeModal({ recipe, token, user, isAdmin, favoritedIds
                         onClick={() => adjustServings(1)}
                         disabled={servings >= MAX_SERVINGS}
                         aria-label="Increase servings"
-                        style={{ background: 'none', border: 'none', cursor: servings >= MAX_SERVINGS ? 'not-allowed' : 'pointer', color: 'var(--text-1)', display: 'flex', alignItems: 'center', padding: '4px', borderRadius: '999px', opacity: servings >= MAX_SERVINGS ? 0.4 : 1 }}
+                        style={{ background: 'none', border: 'none', cursor: servings >= MAX_SERVINGS ? 'not-allowed' : 'pointer', color: 'var(--text-1)', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 38, height: 38, borderRadius: '999px', opacity: servings >= MAX_SERVINGS ? 0.4 : 1 }}
                       >
-                        <Plus size={14} />
+                        <Plus size={15} />
                       </button>
                       {servings !== BASE_SERVINGS && (
                         <button
                           onClick={() => setServings(BASE_SERVINGS)}
                           aria-label="Reset servings"
                           title="Reset"
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-2)', display: 'flex', alignItems: 'center', padding: '4px', borderRadius: '999px' }}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 38, height: 38, borderRadius: '999px' }}
                         >
-                          <RotateCcw size={13} />
+                          <RotateCcw size={14} />
                         </button>
                       )}
                     </div>
                   </div>
-                  <ul style={{ paddingLeft: '20px', lineHeight: '2', color: 'var(--text-1)' }}>
+                  <ul style={{ paddingLeft: '20px', lineHeight: '2', color: 'var(--text-1)', margin: 0 }}>
                     {recipe.ingredients?.map((ing, i) => (
                       <li key={i}><strong>{scaleAmount(ing.amount, scale)}</strong> {ing.name}</li>
                     ))}
                   </ul>
-                  {recipe.ingredients?.length > 0 && (
-                    <button
-                      onClick={handleAddAllToList}
-                      disabled={addToListState === 'adding'}
-                      style={{
-                        marginTop: 12,
-                        display: 'inline-flex', alignItems: 'center', gap: 8,
-                        background: addToListState === 'added' ? 'var(--accent, #3b82f6)' : 'var(--surface-2, rgba(0,0,0,0.04))',
-                        color: addToListState === 'added' ? 'white' : 'var(--text-1)',
-                        border: '1px solid var(--border)',
-                        padding: '8px 14px', borderRadius: 8,
-                        cursor: addToListState === 'adding' ? 'wait' : 'pointer',
-                        fontSize: '0.85rem', fontWeight: 600, fontFamily: 'inherit',
-                        transition: 'background 0.2s, color 0.2s'
-                      }}
-                    >
-                      {addToListState === 'added' ? <Check size={15} /> : <ShoppingCart size={15} />}
-                      {addToListState === 'adding' ? 'Adding…' :
-                       addToListState === 'added' ? 'Added to list' :
-                       addToListState === 'error' ? 'Failed — try again' :
-                       'Add to shopping list'}
-                    </button>
-                  )}
                 </div>
                 <div>
                   <h3 className="recipe-section-title">Instructions</h3>
-                  <ol style={{ paddingLeft: '20px', lineHeight: '1.85', color: 'var(--text-1)' }}>
+                  <ol style={{ paddingLeft: '20px', lineHeight: '1.85', color: 'var(--text-1)', margin: 0 }}>
                     {cleanSteps(recipe.steps).map((s, i) => <li key={i} style={{ marginBottom: '14px' }}>{s}</li>)}
                   </ol>
                 </div>
@@ -300,6 +255,37 @@ export default function RecipeModal({ recipe, token, user, isAdmin, favoritedIds
 
               <RatingSection recipeId={recipe.id} token={token} onRatingUpdate={onRatingUpdate} />
               <CommentsSection recipeId={recipe.id} token={token} user={user} isAdmin={isAdmin} />
+            </div>
+
+            {/* Primary actions stay reachable in the thumb zone */}
+            <div className="modal-action-bar">
+              <button
+                className="icon-btn"
+                style={{ color: isFavorited ? 'var(--danger)' : 'var(--text-2)', border: '1px solid var(--border)', borderRadius: 14, width: 50, height: 50 }}
+                onClick={e => onToggleFavorite(e, recipe.id)}
+                aria-label={isFavorited ? 'Remove from favorites' : 'Save to favorites'}
+              >
+                <Heart size={22} fill={isFavorited ? 'currentColor' : 'none'} />
+              </button>
+              {recipe.ingredients?.length > 0 && (
+                <button
+                  className="icon-btn"
+                  style={{
+                    border: '1px solid var(--border)', borderRadius: 14, width: 50, height: 50,
+                    background: addToListState === 'added' ? 'var(--success)' : undefined,
+                    color: addToListState === 'added' ? 'white' : 'var(--text-2)',
+                  }}
+                  onClick={handleAddAllToList}
+                  disabled={addToListState === 'adding'}
+                  aria-label="Add ingredients to shopping list"
+                  title="Add ingredients to shopping list"
+                >
+                  {addToListState === 'added' ? <Check size={22} /> : <ShoppingCart size={22} />}
+                </button>
+              )}
+              <button className="primary-button" onClick={() => setCookMode(true)}>
+                <ChefHat size={20} /> Start Cooking
+              </button>
             </div>
           </>
         )}

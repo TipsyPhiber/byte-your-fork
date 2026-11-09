@@ -11,3 +11,12 @@ frontend/node_modules/
 dist/
 .DS_Store
 scrub-coauthor.sh
+byteyourforkmobile.pdf
+
+# Kaggle recipe dataset (762MB) — lives in Postgres, not git
+extended_recipes_kaggle/
+recipes_extended-selected-columns.csv
+
+# Flutter build output
+mobile/build/
+mobile/.dart_tool/

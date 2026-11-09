@@ -36,27 +36,28 @@ export default function Favorites({ favoriteRecipes, favoritedIds, onOpen, onTog
       {/* Header row — title + sort */}
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', marginBottom: tags.length > 1 ? '14px' : '24px' }}>
         <div>
-          <h2 style={{ margin: 0, color: 'var(--dark-blue)' }}>Favorites</h2>
+          <h2 className="screen-title">Favorites</h2>
           {favoriteRecipes.length > 0 && (
-            <p style={{ margin: '4px 0 0', color: 'var(--text-light)', fontSize: '0.875rem' }}>
+            <p className="screen-subtitle">
               {visible.length}{visible.length !== favoriteRecipes.length ? ` of ${favoriteRecipes.length}` : ''} {favoriteRecipes.length === 1 ? 'recipe' : 'recipes'}
             </p>
           )}
         </div>
-        {favoriteRecipes.length > 1 && (
-          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-            {SORT_OPTIONS.map(opt => (
-              <button
-                key={opt.value}
-                onClick={() => setSortBy(opt.value)}
-                className={`tag-pill ${sortBy === opt.value ? 'active' : ''}`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        )}
       </div>
+
+      {favoriteRecipes.length > 1 && (
+        <div className="tag-filter" style={{ marginBottom: tags.length > 1 ? 8 : 16 }}>
+          {SORT_OPTIONS.map(opt => (
+            <button
+              key={opt.value}
+              onClick={() => setSortBy(opt.value)}
+              className={`tag-pill ${sortBy === opt.value ? 'active' : ''}`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Cuisine tag filter */}
       {tags.length > 1 && (

@@ -1,8 +1,6 @@
 import { useState, useCallback } from 'react';
-import axios from 'axios';
-import { API_BASE, normalizeRowImage } from '../config';
-
-const BASE = `${API_BASE}/api`;
+import { api } from '../api';
+import { normalizeRowImage } from '../config';
 
 export function useNotifications(token) {
   const [notifications, setNotifications] = useState([]);
@@ -11,25 +9,25 @@ export function useNotifications(token) {
   const fetchNotifications = useCallback(async () => {
     if (!token) return;
     try {
-      const res = await axios.get(`${BASE}/notifications`, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await api.get('/notifications');
       setNotifications(res.data.map(normalizeRowImage));
     } catch { /* ignore */ }
   }, [token]);
 
   const handleClearNotifications = useCallback(async () => {
     try {
-      const res = await axios.put(`${BASE}/auth/clear-notifications`, {}, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await api.put('/auth/clear-notifications');
       setClearedAt(res.data.cleared_at);
     } catch { /* ignore */ }
-  }, [token]);
+  }, []);
 
   const handleDismissNotification = useCallback(async (e, recipeId) => {
     e.stopPropagation();
     try {
-      await axios.delete(`${BASE}/notifications/${recipeId}`, { headers: { Authorization: `Bearer ${token}` } });
+      await api.delete(`/notifications/${recipeId}`);
       setNotifications(prev => prev.filter(n => n.id !== recipeId));
     } catch { /* ignore */ }
-  }, [token]);
+  }, []);
 
   const visibleNotifs = clearedAt
     ? notifications.filter(n => new Date(n.creation_date) > new Date(clearedAt))
