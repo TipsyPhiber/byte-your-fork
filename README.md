@@ -12,6 +12,7 @@ A full-stack recipe discovery and cooking app with hands-free, voice-guided **Co
 - **Voice Cook Mode** — voice-guided, hands-free cooking using your browser's built-in speech recognition and synthesis. Talk to it while your hands are covered in flour — no external API or account required.
 - **Personal cookbook** — save favorites, filter by cuisine, sort by rating / name / cook time.
 - **Community ratings & comments** on every recipe.
+- **Kitchen Assistant** — an AI agent you can chat with ("what can I make with rice and spinach?"). It searches the app's own recipes, respects your dietary restrictions, and can offer to fill your shopping list.
 - **Shopping list** built from saved recipes, with multi-recipe ingredient merging.
 - **Account & profile** management — auth, email verification, password reset, profile pictures, dietary restrictions, cuisine preferences.
 - **Admin panel** for moderation, analytics, and user management.
@@ -45,6 +46,9 @@ Hands-free, voice-guided cooking. Cook Mode reads each step out loud and listens
 
 ![Cook Mode](Demo_Content/cookmode.png)
 
+### Kitchen Assistant
+Ask in plain words: what to make with what's in the fridge, something under 30 minutes, three dinners for the week. The assistant looks things up in the app's recipe catalog and answers with recipes you can open in one tap. If you want to cook one, it offers to add the ingredients to your shopping list, and nothing is added until you tap the button.
+
 ### Shopping list
 Pulls ingredients from every recipe you flag and merges duplicates so you don't end up buying onions four times.
 
@@ -76,6 +80,28 @@ Everything about you and your account, organized into four panels.
 
 ---
 
+## How the Kitchen Assistant works
+
+The assistant is a tool-using agent built on the Claude API (`backend/assistant/`).
+
+1. The app sends the chat so far to `POST /api/assistant/chat`.
+2. The server sends it to Claude along with five tools: read your preferences, search recipes, match recipes to ingredients you have, get one recipe's details, and propose a shopping list addition.
+3. When Claude asks for a tool, the server runs it against Postgres and sends the result back. This repeats until Claude answers, up to 6 steps.
+
+Design decisions:
+
+- **Your diet is enforced in SQL, not in the prompt.** Every search filters on your dietary restrictions in the query itself, so the model can't suggest a recipe with chicken to a vegan user, even if it tries.
+- **The model never chooses whose data it reads.** Tools take the user id from your signed-in session, not from the model's input.
+- **No writes without you.** The shopping list tool only returns a proposal. The app shows a button, and the existing shopping list endpoint runs only when you tap it.
+- **Inputs are checked twice.** Tool schemas use strict mode, and each tool validates its input again on the server. A bad call comes back to the model as a tool error it can recover from.
+- **Costs are capped.** Each user gets 30 messages per 15 minutes, history is limited to 20 turns, and the agent stops after 6 steps.
+
+Tests (`backend/test/`) run in CI against a real Postgres. They check the diet filter, ingredient ranking, wildcard escaping, and that a proposal writes nothing. The agent loop is tested with a scripted fake Claude client, so the tests run offline and cost nothing.
+
+To turn it on, set `ANTHROPIC_API_KEY` in `backend/.env`. Without it, the rest of the app works normally and the assistant page says it isn't set up.
+
+---
+
 ## Tech stack
 
 | Layer       | Tech |
@@ -84,7 +110,8 @@ Everything about you and your account, organized into four panels.
 | Backend     | Node.js, Express 5, REST API |
 | Database    | PostgreSQL 16 (raw SQL migrations, no ORM) |
 | Auth        | JWT, bcrypt, AES-encrypted PII at rest |
-| Voice       | Web Speech API (browser-native, no server-side AI) |
+| Voice       | Web Speech API (browser-native, no paid speech service) |
+| AI agent    | Claude API (`@anthropic-ai/sdk`), tool use |
 | Email       | Nodemailer over SMTP (transactional) |
 | Infra       | Docker Compose, Nginx reverse proxy |
 | Hardening   | Helmet, express-rate-limit, CORS, parameterized queries |
@@ -99,6 +126,7 @@ Browser ──▶ Frontend container (Nginx + Vite-built React SPA)
               └──▶ Backend container (Express API)
                        │
                        ├──▶ PostgreSQL (recipes, users, ratings, …)
+                       ├──▶ Claude API (Kitchen Assistant, optional)
                        └──▶ SMTP (verification, password reset, shopping list)
 
 ```
@@ -111,8 +139,9 @@ Each service is its own container, orchestrated by `docker-compose.yml`. The ful
 
 - **End-to-end ownership** — product design, schema design, API design, UI, and ops.
 - **Security awareness** — encrypted PII, hashed passwords, rate-limited auth endpoints, parameterized SQL, secrets kept out of source.
-- **Browser-native voice UX** — Cook Mode runs entirely client-side using the Web Speech API (SpeechRecognition + SpeechSynthesis). No external API costs, no audio leaves the user's device.
+- **Browser-native voice UX** — Cook Mode runs entirely client-side using the Web Speech API (SpeechRecognition + SpeechSynthesis). No paid speech service, and the app never stores anyone's audio.
 - **Schema evolution** — incremental SQL migrations checked into the repo, applied via a small Node runner.
+- **Safe AI features** — an agent whose tools enforce the user's diet and permissions in code, with human approval before anything is written.
 - **Pragmatism** — no ORM, no Redux, no microservices. Right-sized for the problem.
 
 ---
@@ -160,7 +189,7 @@ Open `backend/.env` and fill in these **three required** values. You can paste t
 | `JWT_SECRET`   | any long random string — e.g. `openssl rand -hex 64` |
 | `AES_KEY`      | exactly 64 hex chars — e.g. `openssl rand -hex 32` |
 
-The other variables (SMTP, Instacart) are **optional** — the app runs without them. Only the features that depend on them will be inactive (e.g. password-reset emails, Instacart hand-off). Cook Mode is browser-native and doesn't require any keys.
+The other variables (SMTP, Instacart, Anthropic) are **optional** — the app runs without them. Only the features that depend on them will be inactive (e.g. password-reset emails, Instacart hand-off). Cook Mode is browser-native and doesn't require any keys.
 
 ### 3. Start everything
 

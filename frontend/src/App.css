@@ -1017,6 +1017,86 @@ body.keyboard-open .bottom-nav { display: none; }
 }
 
 /* ─────────────────────────────────────────
+   Kitchen Assistant
+───────────────────────────────────────── */
+.assistant-page { max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; min-height: 100%; }
+.assistant-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 20px; }
+.assistant-thread { flex: 1; display: flex; flex-direction: column; gap: 14px; padding-bottom: 16px; }
+.assistant-msg { display: flex; gap: 10px; align-items: flex-start; max-width: 100%; }
+.assistant-msg.user { justify-content: flex-end; }
+.assistant-avatar {
+  width: 32px; height: 32px; flex-shrink: 0; border-radius: var(--r-full);
+  display: flex; align-items: center; justify-content: center;
+  background: var(--accent-dim); color: var(--accent);
+}
+.assistant-bubble {
+  background: var(--surface); border: 1px solid var(--border); color: var(--text-1);
+  border-radius: var(--r-lg); border-top-left-radius: 6px;
+  padding: 10px 14px; font-size: 0.92rem; line-height: 1.5;
+  max-width: min(560px, calc(100% - 42px)); overflow-wrap: anywhere; box-shadow: var(--shadow-xs);
+}
+.assistant-msg.user .assistant-bubble {
+  background: var(--accent); border-color: var(--accent); color: white;
+  border-top-left-radius: var(--r-lg); border-top-right-radius: 6px; max-width: min(520px, 85%);
+}
+.assistant-msg.error .assistant-bubble { border-color: var(--danger); background: var(--danger-dim); }
+.assistant-bubble p { margin: 0 0 6px; }
+.assistant-bubble p:last-child { margin-bottom: 0; }
+.assistant-bubble ul { margin: 4px 0 8px; padding-left: 20px; }
+.assistant-bubble li { margin: 3px 0; }
+.assistant-recipe-link {
+  display: inline-flex; align-items: center; gap: 2px; margin-left: 4px; vertical-align: 1px;
+  padding: 1px 8px; border-radius: var(--r-full); border: 1px solid var(--accent);
+  background: var(--accent-dim); color: var(--accent);
+  font: inherit; font-size: 0.75rem; font-weight: 700; cursor: pointer;
+}
+.assistant-tools { margin-top: 8px; font-size: 0.72rem; color: var(--text-3); }
+.assistant-proposal {
+  margin-top: 10px; padding: 10px 12px; border-radius: var(--r-md);
+  background: var(--surface-2); display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+}
+.assistant-proposal-text { flex: 1; min-width: 180px; display: flex; gap: 8px; align-items: flex-start; font-size: 0.85rem; color: var(--text-2); }
+.assistant-proposal-text svg { flex-shrink: 0; margin-top: 2px; }
+.assistant-proposal-btn {
+  min-height: 36px; padding: 0 14px; border: none; border-radius: var(--r-full);
+  background: var(--accent); color: white; font: inherit; font-size: 0.82rem; font-weight: 700;
+  display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+}
+.assistant-proposal-btn:disabled { background: var(--success); cursor: default; }
+.assistant-proposal-btn:disabled:not(:has(svg)) { background: var(--text-3); }
+.assistant-suggestions { display: flex; flex-wrap: wrap; gap: 8px; padding-left: 42px; }
+.assistant-suggestions .tag-pill { white-space: normal; text-align: left; min-height: 36px; padding: 6px 14px; max-width: 100%; flex-shrink: 1; }
+.assistant-typing { display: flex; gap: 5px; align-items: center; padding: 14px 16px; }
+.assistant-typing span {
+  width: 7px; height: 7px; border-radius: var(--r-full); background: var(--text-3);
+  animation: assistant-dot 1.2s infinite ease-in-out;
+}
+.assistant-typing span:nth-child(2) { animation-delay: 0.15s; }
+.assistant-typing span:nth-child(3) { animation-delay: 0.3s; }
+@keyframes assistant-dot { 0%, 80%, 100% { opacity: 0.3; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-3px); } }
+@media (prefers-reduced-motion: reduce) { .assistant-typing span { animation: none; } }
+.assistant-input {
+  position: sticky; bottom: 0; z-index: 2;
+  display: flex; gap: 8px; align-items: flex-end;
+  padding: 8px; border-radius: var(--r-xl);
+  background: var(--surface); border: 1.5px solid var(--border); box-shadow: var(--shadow-md);
+}
+.assistant-input:focus-within { border-color: var(--accent); }
+.assistant-input textarea {
+  flex: 1; resize: none; border: none; outline: none; background: transparent; color: var(--text-1);
+  font: inherit; font-size: 16px; line-height: 1.4; padding: 8px 6px; max-height: 120px;
+}
+.assistant-input button {
+  width: 40px; height: 40px; flex-shrink: 0; border: none; border-radius: var(--r-full);
+  background: var(--accent); color: white; display: flex; align-items: center; justify-content: center; cursor: pointer;
+}
+.assistant-input button:disabled { background: var(--border); color: var(--text-3); cursor: default; }
+@media (max-width: 768px) {
+  .assistant-header .screen-subtitle { font-size: 0.8rem; }
+  .assistant-suggestions { padding-left: 0; }
+}
+
+/* ─────────────────────────────────────────
    Dark Mode
 ───────────────────────────────────────── */
 [data-theme="dark"] {

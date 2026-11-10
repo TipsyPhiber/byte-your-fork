@@ -28,6 +28,7 @@ import Explore from './pages/Explore';
 import Favorites from './pages/Favorites';
 import Notifications from './pages/Notifications';
 import ShoppingList from './pages/ShoppingList';
+import Assistant from './pages/Assistant';
 
 function App() {
   const { token, user, setUser, login, logout } = useAuth();
@@ -129,6 +130,7 @@ function App() {
             <Route path="/favorites" element={<Favorites favoriteRecipes={favoriteRecipes} favoritedIds={favoritedIds} onOpen={openRecipe} onToggleFavorite={handleToggleFavorite} token={token} />} />
             <Route path="/notifications" element={<Notifications visibleNotifs={visibleNotifs} onClear={handleClearNotifications} onDismiss={handleDismissNotification} onOpen={openRecipe} />} />
             <Route path="/shopping-list" element={<ShoppingList token={token} />} />
+            <Route path="/assistant" element={<Assistant onOpen={openRecipe} />} />
             <Route path="/settings" element={<Settings user={user} setUser={setUser} token={token} onPreferencesChange={() => {}} darkMode={dark} setDarkMode={setDark} />} />
             <Route path="/add-recipe" element={<AddRecipe token={token} onRecipeAdded={() => { navigate('/dashboard'); fetchRecipes(); }} />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
