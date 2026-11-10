@@ -52,6 +52,7 @@ app.use('/api/ratings', require('./routes/ratings'));
 app.use('/api/shopping-list', require('./routes/shoppingList'));
 app.use('/api/analytics', require('./routes/analytics'));
 app.use('/api/recommendations', require('./routes/recommendations'));
+app.use('/api/assistant', require('./routes/assistant'));
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
